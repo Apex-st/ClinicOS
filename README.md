@@ -70,6 +70,35 @@ cd ios/App
 pod install
 ```
 
+### Если Xcode уже открылся с ошибкой Podfile.lock
+
+Закройте Xcode полностью (**Cmd+Q**). Вставьте в Terminal **весь блок целиком** и нажмите Return. Если спросит пароль — это пароль Mac, буквы не отображаются:
+
+```bash
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+export LANG=en_US.UTF-8
+if ! command -v npm >/dev/null; then
+  curl -fL https://nodejs.org/dist/v22.23.2/node-v22.23.2.pkg -o /tmp/node.pkg
+  sudo installer -pkg /tmp/node.pkg -target /
+fi
+if ! command -v pod >/dev/null; then
+  sudo gem install cocoapods
+fi
+if [ ! -d "$HOME/Desktop/ClinicOS/.git" ]; then
+  git clone https://github.com/Apex-st/ClinicOS.git "$HOME/Desktop/ClinicOS"
+fi
+cd "$HOME/Desktop/ClinicOS"
+git pull
+npm install
+cd ios/App
+pod install
+open App.xcworkspace
+```
+
+После этого в Xcode: симулятор iPhone сверху → кнопка ▶.
+
+---
+
 ---
 
 ## Шаг 3. Открыть в Xcode и поставить на свой iPhone
@@ -179,7 +208,7 @@ App Store Connect → приложение → TestFlight → Internal Testing.
 
 | Сообщение | Что сделать |
 |---|---|
-| `Unable to open base configuration reference file` | Закройте Xcode. В Terminal: `cd ~/Desktop/ClinicOS && git pull && npm install && cd ios/App && pod install && open App.xcworkspace`. Без `npm install` команда `pod install` не создаёт нужные файлы. |
+| `The sandbox is not in sync with the Podfile.lock` | Закройте Xcode (Cmd+Q). В Terminal выполните блок из раздела «Если Xcode уже открылся с ошибкой» ниже. Затем снова откройте **`App.xcworkspace`**. |
 | `Failed to open document` | Не открывайте файлы с github.com. На Mac: те же команды, что строкой выше. Открывать только `App.xcworkspace`. |
 | `No such module 'Capacitor'` | Открыт `.xcodeproj`. Закройте и откройте **`.xcworkspace`**. Затем `cd ios/App && pod install`. |
 | Signing: Failed / Personal Team | Bundle ID занят — добавьте суффикс. Или войдите в платный Team. |
