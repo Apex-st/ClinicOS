@@ -74,15 +74,31 @@ pod install
 
 ## Шаг 3. Открыть в Xcode и поставить на свой iPhone
 
-1. Дважды щёлкните **`ios/App/App.xcworkspace`**.
-2. Слева в навигаторе выберите синюю иконку **App**.
-3. Вкладка **Signing & Capabilities**:
+**С сайта GitHub файл открыть нельзя** — только с Mac, из Finder.
+
+1. В Finder зайдите: `ClinicOS` → `ios` → `App`.
+2. Дважды щёлкните **`App.xcworkspace`** (иконка белая с синим). Не `App.xcodeproj`.
+3. Если Xcode пишет **Failed to open document** — сначала в Terminal:
+
+```bash
+cd ~/Desktop/ClinicOS
+git pull
+npm install
+cd ios/App
+pod install
+open App.xcworkspace
+```
+
+`pod install` создаёт папку Pods. Без неё старый workspace мог не открываться.
+
+4. Слева в навигаторе выберите синюю иконку **App**.
+5. Вкладка **Signing & Capabilities**:
    - Team → Add Account… → свой Apple ID.
    - Automatically manage signing — включено.
    - Bundle Identifier оставьте `ru.denta.clinic`. Если Xcode пишет, что идентификатор занят — добавьте свой суффикс, например `ru.denta.clinic.ios`.
-4. Сверху в панели схемы выберите **свой iPhone** (подключён кабелем, разблокирован). На iPhone: «Доверять этому компьютеру».
-5. Нажмите ▶ (Run). Первая сборка занимает несколько минут.
-6. Если iPhone пишет «Ненадёжный разработчик»: Настройки → Основные → VPN и управление устройством → ваш Apple ID → Доверять.
+6. Сверху в панели схемы выберите **свой iPhone** (подключён кабелем, разблокирован). На iPhone: «Доверять этому компьютеру».
+7. Нажмите ▶ (Run). Первая сборка занимает несколько минут.
+8. Если iPhone пишет «Ненадёжный разработчик»: Настройки → Основные → VPN и управление устройством → ваш Apple ID → Доверять.
 
 Бесплатная подпись живёт **7 дней**. Потом снова подключите iPhone и нажмите ▶ в Xcode.
 
@@ -163,7 +179,7 @@ App Store Connect → приложение → TestFlight → Internal Testing.
 
 | Сообщение | Что сделать |
 |---|---|
-| `No such module 'Capacitor'` | Открыт `.xcodeproj`. Закройте и откройте **`.xcworkspace`**. Затем `cd ios/App && pod install`. |
+| `Failed to open document` | Файл открыт с сайта GitHub или до `pod install`. На Mac: `git pull`, затем `cd ios/App && pod install && open App.xcworkspace`. |
 | Signing: Failed / Personal Team | Bundle ID занят — добавьте суффикс. Или войдите в платный Team. |
 | `pod: command not found` | `sudo gem install cocoapods` |
 | `npm: command not found` | Поставить Node.js 22 с nodejs.org |
