@@ -179,7 +179,9 @@ App Store Connect → приложение → TestFlight → Internal Testing.
 
 | Сообщение | Что сделать |
 |---|---|
-| `Failed to open document` | Файл открыт с сайта GitHub или до `pod install`. На Mac: `git pull`, затем `cd ios/App && pod install && open App.xcworkspace`. |
+| `Unable to open base configuration reference file` | Закройте Xcode. В Terminal: `cd ~/Desktop/ClinicOS && git pull && npm install && cd ios/App && pod install && open App.xcworkspace`. Без `npm install` команда `pod install` не создаёт нужные файлы. |
+| `Failed to open document` | Не открывайте файлы с github.com. На Mac: те же команды, что строкой выше. Открывать только `App.xcworkspace`. |
+| `No such module 'Capacitor'` | Открыт `.xcodeproj`. Закройте и откройте **`.xcworkspace`**. Затем `cd ios/App && pod install`. |
 | Signing: Failed / Personal Team | Bundle ID занят — добавьте суффикс. Или войдите в платный Team. |
 | `pod: command not found` | `sudo gem install cocoapods` |
 | `npm: command not found` | Поставить Node.js 22 с nodejs.org |
