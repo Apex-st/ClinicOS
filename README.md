@@ -24,11 +24,12 @@ Apple ставит приложение только так:
 
 ## Что нужно на Mac
 
-- Mac с macOS, на котором ставится свежий **Xcode** из App Store (бесплатно).
-- При первом запуске Xcode: Agree, дождаться компонентов, в Xcode → Settings → Accounts добавить Apple ID.
-- Terminal (Программы → Утилиты).
-- [Node.js 22](https://nodejs.org/) (нужен, чтобы один раз собрать зависимости).
-- CocoaPods: в Terminal `sudo gem install cocoapods` (один раз).
+- Mac с **Xcode** из App Store (бесплатно).
+- При первом запуске Xcode: Agree, дождаться компонентов, Xcode → Settings → Accounts → Apple ID.
+
+**Node.js и CocoaPods больше не нужны.** Проект открывается сразу в Xcode.
+
+---
 
 ---
 
@@ -48,7 +49,25 @@ cd ClinicOS
 
 ---
 
-## Шаг 2. Собрать iOS-проект
+## Шаг 2. Открыть в Xcode
+
+CocoaPods (`pod install`) **не нужен**.
+
+1. Закройте Xcode (Cmd+Q), если он открыт.
+2. В Finder: `ClinicOS-ios` → `ios` → `App`.
+3. Дважды щёлкните **`App.xcodeproj`** (синяя иконка). Можно и `App.xcworkspace`.
+4. Подождите 1–2 минуты: Xcode сам скачает пакет Capacitor.
+5. Сверху выберите симулятор **iPhone** → нажмите **▶**.
+
+Если проект уже был скачан раньше:
+
+```bash
+cd ~/Desktop/ClinicOS-ios
+git pull
+open ios/App/App.xcodeproj
+```
+
+---
 
 В той же папке `ClinicOS`:
 
