@@ -1,0 +1,192 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Source Serif 4", "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-bg: #f3f0ea;
+  --color-surface: #fffcf7;
+  --color-surface-2: #ebe6dc;
+  --color-ink: #1c1915;
+  --color-muted: #6f6a62;
+  --color-subtle: #9a948a;
+  --color-line: #ddd6ca;
+  --color-primary: #1f5c52;
+  --color-primary-fg: #f7f4ee;
+  --color-primary-hover: #174840;
+  --color-rail: #1c1915;
+  --color-rail-fg: #f4efe6;
+  --color-rail-muted: #b7b0a4;
+  --color-danger: #9b3a3a;
+  --color-warn: #b45309;
+  --color-ok: #3d6b4f;
+  --color-chair: #8a4a12;
+
+  --color-tooth-healthy: #f4efe4;
+  --color-tooth-caries: #c45c4a;
+  --color-tooth-filling: #5b6e7a;
+  --color-tooth-pulpitis: #9b3a3a;
+  --color-tooth-periodontitis: #b45309;
+  --color-tooth-crown: #8a7a62;
+  --color-tooth-veneer: #d9cfc0;
+  --color-tooth-implant: #1f5c52;
+  --color-tooth-root: #5c5348;
+  --color-tooth-missing: #e7e1d6;
+  --color-tooth-extracted: #d3ccc0;
+  --color-tooth-bridge: #6b6358;
+  --color-tooth-gum: #e4b7b0;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+
+  --shadow-card: 0 0 0 1px rgb(28 25 21 / 0.06), 0 1px 2px -1px rgb(28 25 21 / 0.06),
+    0 2px 8px rgb(28 25 21 / 0.04);
+  --shadow-lift: 0 0 0 1px rgb(28 25 21 / 0.08), 0 8px 24px rgb(28 25 21 / 0.08);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-live {
+    transition: none !important;
+  }
+}
+
+.cal-live {
+  transition: transform 200ms var(--ease-out), opacity 200ms var(--ease-out),
+    top 200ms var(--ease-out), height 200ms var(--ease-out), min-width 180ms var(--ease-out),
+    min-height 180ms var(--ease-out), background-color 200ms var(--ease-out);
+}
+
+html[data-theme="dark"] {
+  --color-bg: #12110f;
+  --color-surface: #1c1b18;
+  --color-surface-2: #26251f;
+  --color-ink: #f4efe6;
+  --color-muted: #a8a197;
+  --color-subtle: #7a746a;
+  --color-line: #343229;
+  --color-primary: #8fc9bb;
+  --color-primary-fg: #0e1a17;
+  --color-primary-hover: #a3d4c8;
+  --color-rail: #0d0c0b;
+  --color-rail-fg: #f4efe6;
+  --color-rail-muted: #8a847a;
+  --color-danger: #e08a8a;
+  --color-warn: #d4a05a;
+  --color-ok: #8fbf9c;
+  --color-chair: #d4925a;
+  --color-tooth-healthy: #2a2823;
+  --color-tooth-caries: #c45c4a;
+  --color-tooth-filling: #7a90a0;
+  --color-tooth-pulpitis: #d07070;
+  --color-tooth-periodontitis: #d4a05a;
+  --color-tooth-crown: #a89880;
+  --color-tooth-veneer: #4a463e;
+  --color-tooth-implant: #8fc9bb;
+  --color-tooth-root: #8a8074;
+  --color-tooth-missing: #1f1e1a;
+  --color-tooth-extracted: #2e2c27;
+  --color-tooth-bridge: #8a8478;
+  --color-tooth-gum: #5a3a38;
+  --shadow-card: 0 0 0 1px rgb(244 239 230 / 0.08);
+  --shadow-lift: 0 0 0 1px rgb(244 239 230 / 0.12), 0 12px 32px rgb(0 0 0 / 0.35);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color-scheme: light;
+    overscroll-behavior-x: none;
+    overflow-x: hidden;
+    background: #f3f0ea;
+    touch-action: pan-x pan-y;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    background: #12110f;
+  }
+
+  #denta-boot {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: #f3f0ea;
+    color: #1c1915;
+    font-family: "Source Serif 4", "Times New Roman", serif;
+  }
+
+  #denta-boot-text {
+    margin: 0;
+    max-width: 18rem;
+    padding: 0 1.5rem;
+    font-size: 28px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  html[data-theme="dark"] #denta-boot {
+    background: #12110f;
+    color: #f4efe6;
+  }
+
+  html.denta-ready #denta-boot {
+    display: none;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    overflow-x: hidden;
+    max-width: 100%;
+    touch-action: pan-x pan-y;
+    transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

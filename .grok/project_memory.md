@@ -1,0 +1,5 @@
+- Репозиторий: Apex-st/denta-cabinet (private), ветка main [2026-09-01]
+- Стек: TypeScript, React, Vite, Capacitor 6, appId ru.denta.clinic, версия 1.9.0 [2026-09-01]
+- Есть Android-сборка (Denta.apk / Denta-1.9.apk). Платформы android/ и ios/ в корне репозитория нет [2026-09-01]
+- capacitor.config.ts: webDir dist-apk/client, только androidScheme [2026-09-01]
+- iOS-сборку в текущем Linux-окружении выполнить нельзя (нужны Mac + Xcode) [2026-09-01]
