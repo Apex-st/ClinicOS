@@ -1,0 +1,23 @@
+{
+	"appId": "ru.denta.clinic",
+	"appName": "Denta",
+	"webDir": "dist-apk/client",
+	"android": {
+		"allowMixedContent": true
+	},
+	"ios": {
+		"contentInset": "automatic",
+		"preferredContentMode": "mobile",
+		"scheme": "Denta"
+	},
+	"server": {
+		"androidScheme": "https",
+		"iosScheme": "https"
+	},
+	"packageClassList": [
+		"ContactsPlugin",
+		"AppPlugin",
+		"FilesystemPlugin",
+		"SharePlugin"
+	]
+}

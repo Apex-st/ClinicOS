@@ -7,9 +7,7 @@ xcuserdata
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 
-# Generated Config files
-App/App/capacitor.config.json
-App/App/config.xml
+# config.xml и capacitor.config.json нужны в Xcode — не игнорируем.
 
 # Web-сборка 2.24 лежит в App/App/public — её нужно открывать в Xcode без npm.
 # Не игнорируем public/.
