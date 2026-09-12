@@ -18,7 +18,7 @@ import { formatDate, PHOTO_CATEGORIES, PHOTO_CATEGORY_LABEL, todayISO } from "@/
 import { compressImage, getPhotoBlob, putPhotoBlob } from "@/lib/photos-idb";
 import { useLongPress } from "@/lib/long-press";
 import { useClinic } from "@/lib/store";
-import { ALL_FDI } from "@/lib/teeth";
+import { ToothFdiOptions } from "@/components/odontogram";
 import type { PhotoAlbum, PhotoCategory, PhotoMeta } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
@@ -442,11 +442,7 @@ export function PhotoArchive({ patientId }: { patientId: string }) {
           <Field label="Зуб">
             <Select value={draft.toothFdi} onChange={(e) => setDraft((d) => ({ ...d, toothFdi: e.target.value }))}>
               <option value="">Не указан</option>
-              {ALL_FDI.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
+              <ToothFdiOptions />
             </Select>
           </Field>
           <Field label="Комментарий">

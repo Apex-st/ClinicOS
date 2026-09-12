@@ -1,4 +1,4 @@
-import { isUpper, toothKind, toothSurfaceStatus, TOOTH_STATUS_LABEL, statusUsesSurfaces } from "@/lib/teeth";
+import { isPrimary, isUpper, toothKind, toothSurfaceStatus, TOOTH_STATUS_LABEL, statusUsesSurfaces } from "@/lib/teeth";
 import type { ToothState, ToothStatus, ToothSurface } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,10 +22,49 @@ type Kind = ReturnType<typeof toothKind>;
 function spec(fdi: number) {
   const n = fdi % 10;
   const upper = isUpper(fdi);
+  const primary = isPrimary(fdi);
   const kind = toothKind(fdi);
-  const roots = n <= 3 ? 1 : n === 4 && upper ? 2 : n === 5 ? 1 : upper ? 3 : 2;
-  const width = n === 1 ? 1.18 : n === 2 ? 0.92 : n === 3 ? 1 : n === 4 ? 1.06 : n === 5 ? 1.02 : n === 6 ? 1.34 : n === 7 ? 1.22 : 0.96;
-  return { n, upper, kind, roots, width, wisdom: n === 8 };
+  const roots = primary
+    ? n <= 3
+      ? 1
+      : upper
+        ? 3
+        : 2
+    : n <= 3
+      ? 1
+      : n === 4 && upper
+        ? 2
+        : n === 5
+          ? 1
+          : upper
+            ? 3
+            : 2;
+  const width = primary
+    ? n === 1
+      ? 1.1
+      : n === 2
+        ? 0.88
+        : n === 3
+          ? 0.96
+          : n === 4
+            ? 1.22
+            : 1.34
+    : n === 1
+      ? 1.18
+      : n === 2
+        ? 0.92
+        : n === 3
+          ? 1
+          : n === 4
+            ? 1.06
+            : n === 5
+              ? 1.02
+              : n === 6
+                ? 1.34
+                : n === 7
+                  ? 1.22
+                  : 0.96;
+  return { n, upper, kind, roots, width, wisdom: !primary && n === 8, primary };
 }
 
 function enamelColor(status: ToothStatus) {
@@ -61,16 +100,17 @@ export function ToothGlyph({
   const gone = state.status === "missing" || state.status === "extracted";
   const uid = `t${fdi}-${size}`;
   const dim = SIZE[size];
+  const hScale = s.primary ? 0.92 : 1;
   const w = dim.unit * s.width;
   const q = Math.floor(fdi / 10);
-  const rightSide = q === 1 || q === 4;
+  const rightSide = q === 1 || q === 4 || q === 5 || q === 8;
   const tilt = s.wisdom ? (rightSide ? -7 : 7) : 0;
 
   return (
     <svg
       viewBox="0 0 56 112"
       width={w}
-      height={dim.h}
+      height={dim.h * hScale}
       className={cn("overflow-visible", picked && "drop-shadow-[0_0_0_2px_var(--color-primary)]")}
       aria-hidden
     >
@@ -100,13 +140,19 @@ export function ToothGlyph({
           <feDropShadow dx="0" dy="1.15" stdDeviation="1.15" floodColor="#4a3724" floodOpacity="0.28" />
         </filter>
         <clipPath id={`${uid}-c`}>
-          <path d={crownPath(s.kind, s.n)} />
+          <path d={crownPath(s.kind, s.n, s.primary)} />
         </clipPath>
       </defs>
       <g filter={gone ? undefined : `url(#${uid}-sh)`} transform={s.upper ? undefined : "translate(0 112) scale(1 -1)"}>
         <g transform={tilt ? `rotate(${tilt} 28 56)` : undefined}>
           {state.status === "periodontitis" && !gone ? <Granulomas roots={s.roots} uid={uid} /> : null}
-          {state.status === "implant" ? <Implant uid={uid} /> : <Roots count={s.roots} kind={s.kind} gone={gone} fill={`url(#${uid}-rt)`} />}
+          {state.status === "implant" ? (
+            <Implant uid={uid} />
+          ) : (
+            <g transform={s.primary ? "translate(28 46) scale(1 0.78) translate(-28 -46)" : undefined}>
+              <Roots count={s.roots} kind={s.kind} gone={gone} fill={`url(#${uid}-rt)`} />
+            </g>
+          )}
           {state.status === "root" ? (
             <path
               d="M18 46 C17 54 18 62 28 64 C38 62 39 54 38 46"
@@ -115,7 +161,7 @@ export function ToothGlyph({
               strokeWidth="1.4"
             />
           ) : (
-            <Crown uid={uid} kind={s.kind} n={s.n} state={state} rightSide={rightSide} gone={gone} />
+            <Crown uid={uid} kind={s.kind} n={s.n} state={state} rightSide={rightSide} gone={gone} primary={s.primary} />
           )}
         </g>
       </g>
@@ -225,6 +271,7 @@ function Crown({
   state,
   rightSide,
   gone,
+  primary,
 }: {
   uid: string;
   kind: Kind;
@@ -232,8 +279,9 @@ function Crown({
   state: ToothState;
   rightSide: boolean;
   gone: boolean;
+  primary: boolean;
 }) {
-  const d = crownPath(kind, n);
+  const d = crownPath(kind, n, primary);
   const split = Boolean(statusUsesSurfaces(state.status) && state.surfaces && Object.keys(state.surfaces).length);
   const extracted = state.status === "extracted";
   const veneer = state.status === "veneer";
@@ -354,8 +402,14 @@ function Crown({
   );
 }
 
-function crownPath(kind: Kind, n: number) {
+function crownPath(kind: Kind, n: number, primary = false) {
   if (kind === "molar") {
+    if (primary) {
+      if (n === 4) {
+        return "M11 46 C6.4 52 7.2 66 11.4 80 C14.2 92 19.4 100 24.6 103 C27.6 105.2 28.4 102 28.8 99 C29.4 102.4 32 105.4 35.4 103 C40.8 99 45.4 90 47.6 78 C51 64 50.4 52 45.6 46 C38.4 42.4 18 42.4 11 46 Z";
+      }
+      return "M9.2 46 C4.6 52 5.4 66 9.2 82 C12.2 94 17.8 102 23.6 105 C27 107.2 28.2 104 28.8 100.6 C29.6 104.2 32.4 107.4 36.2 105 C42 101 47.2 93 49.6 82 C53.2 66 53.6 52 48.6 46 C40.6 42 16.8 42 9.2 46 Z";
+    }
     if (n === 8) {
       return "M14 46 C10 52 10.4 68 13.2 80 C15.2 90 19 98 24 102 C26.6 104.4 28.6 102 29.2 99 C30 102 32.4 104.6 35 102 C39.6 97 43 88 44.6 78 C47 66 46.6 52 42.4 46 C36 43.4 20 43.4 14 46 Z";
     }
@@ -365,6 +419,9 @@ function crownPath(kind: Kind, n: number) {
     return "M14.4 46 C10.8 52 11 68 15.2 84 C17.8 94 22.4 101 28 104 C33.6 101 38.2 94 40.8 84 C45 68 45.2 52 41.6 46 C35 43.4 21 43.4 14.4 46 Z";
   }
   if (kind === "canine") {
+    if (primary) {
+      return "M17.6 46 C14.2 54 15.4 70 22.6 90 C25 98 26.6 104 28 105.6 C29.4 104 31 98 33.4 90 C40.6 70 41.8 54 38.4 46 C33 43.6 23 43.6 17.6 46 Z";
+    }
     return "M17.2 46 C13.6 54 14.8 72 22.2 92 C24.8 100 26.4 106 28 108 C29.6 106 31.2 100 33.8 92 C41.2 72 42.4 54 38.8 46 C33 43.4 23 43.4 17.2 46 Z";
   }
   if (n === 2) {

@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, fullName, todayISO } from "@/lib/format";
+import { ageYears, formatDate, fullName, todayISO } from "@/lib/format";
 import { emptyPlanItem } from "@/lib/plan-groups";
 import { buildOrthoPdfBlob, orthoSections, specialtyHtml } from "@/lib/specialty-pdf";
 import {
@@ -267,6 +267,7 @@ export function OrthoCardPanel({ patientId }: { patientId: string }) {
           markOptions={ORTHO_MARKS}
           onMarksChange={(fdi, next) => save({ teethMarks: { ...card.teethMarks, [String(fdi)]: next } })}
           hint="FDI · состояние и ортодонтические отметки"
+          patientAge={ageYears(patient.birthDate)}
         />
       </SpecSection>
 

@@ -1,7 +1,7 @@
 import { planTotals } from "./discounts";
 import { formatDate, fullName, money } from "./format";
 import { groupPlanItems, planDocumentText } from "./plan-groups";
-import { LOWER_LEFT, LOWER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
+import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
 import type { Chart, DiscountType, Patient, Settings, ToothStatus, TreatmentPlan } from "./types";
 
 function esc(s: string) {
@@ -42,14 +42,19 @@ function formulaHtml(chart: Chart) {
     return `<div class="arch">${cells}</div>`;
   };
   const used = new Set<ToothStatus>();
-  for (const fdi of [...UPPER_RIGHT, ...UPPER_LEFT, ...LOWER_RIGHT, ...LOWER_LEFT]) {
+  const allFdi = [...UPPER_RIGHT, ...UPPER_LEFT, ...LOWER_RIGHT, ...LOWER_LEFT, ...ALL_PRIMARY_FDI];
+  for (const fdi of allFdi) {
     const st = normalizeTooth(chart[fdi]).status;
     if (st !== "healthy") used.add(st);
   }
   const legend = used.size
     ? `<p class="muted">${[...used].map((s) => TOOTH_STATUS_LABEL[s]).join(" · ")}</p>`
     : "";
-  return `<div class="formula"><h2>Зубная формула</h2>${row([...UPPER_RIGHT, ...UPPER_LEFT], "top")}${row([...LOWER_RIGHT, ...LOWER_LEFT], "bottom")}${legend}</div>`;
+  const primaryUsed = ALL_PRIMARY_FDI.some((fdi) => normalizeTooth(chart[fdi]).status !== "healthy");
+  const primaryBlock = primaryUsed
+    ? `<h3>Молочный прикус</h3>${row([...PRIMARY_UPPER_RIGHT, ...PRIMARY_UPPER_LEFT], "top")}${row([...PRIMARY_LOWER_RIGHT, ...PRIMARY_LOWER_LEFT], "bottom")}`
+    : "";
+  return `<div class="formula"><h2>Зубная формула</h2>${row([...UPPER_RIGHT, ...UPPER_LEFT], "top")}${row([...LOWER_RIGHT, ...LOWER_LEFT], "bottom")}${primaryBlock}${legend}</div>`;
 }
 
 export function planDocumentHtml(

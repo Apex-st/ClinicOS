@@ -2,7 +2,7 @@ import { addDays, format, subDays } from "date-fns";
 import { seedBudgetCategories } from "./budget";
 import { seedStockGroups, seedStockItems } from "./stock";
 import { DEFAULT_DIARY_TEMPLATES, emptyDiary, emptyFinding } from "./diary";
-import { ALL_FDI } from "./teeth";
+import { ALL_CHART_FDI } from "./teeth";
 import type {
   Appointment,
   Chart,
@@ -21,7 +21,7 @@ import type {
 
 function emptyChart(): Chart {
   const chart: Chart = {};
-  for (const fdi of ALL_FDI) {
+  for (const fdi of ALL_CHART_FDI) {
     chart[fdi] = { status: "healthy", note: "" };
   }
   return chart;
@@ -218,6 +218,24 @@ export function seedPatients(): Patient[] {
       discountTypeId: "d_loyalty",
       recallStatus: "none",
     },
+    {
+      id: "p_smirnova",
+      lastName: "Смирнова",
+      firstName: "Алиса",
+      middleName: "Сергеевна",
+      birthDate: "2019-04-11",
+      phone: "+7 (916) 555-20-11",
+      email: "",
+      address: "",
+      allergies: "",
+      chronic: "",
+      notes: "Сменный прикус. Кариес молочных моляров.",
+      createdAt: now,
+      cardNumber: "МК-1007",
+      referredById: "p_ivanova",
+      discountTypeId: "d_referral",
+      recallStatus: "none",
+    },
   ];
 }
 
@@ -255,6 +273,16 @@ export function seedCharts(): Record<string, Chart> {
       [26, { status: "caries", note: "" }],
       [27, { status: "caries", note: "" }],
       [46, { status: "implant", note: "Osstem, 2023" }],
+    ]),
+    p_smirnova: withTeeth([
+      [54, { status: "caries", note: "Жевательная", surfaces: { O: "caries" } }],
+      [64, { status: "filling", note: "2025" }],
+      [75, { status: "caries", note: "" }],
+      [85, { status: "pulpitis", note: "Ночная боль" }],
+      [16, { status: "healthy", note: "Прорезается" }],
+      [26, { status: "healthy", note: "" }],
+      [36, { status: "healthy", note: "" }],
+      [46, { status: "healthy", note: "" }],
     ]),
   };
 }

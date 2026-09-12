@@ -12,7 +12,7 @@ import { getPhotoBlob } from "@/lib/photos-idb";
 import { ORTHO_SHOTS, PHOTO_STAGES, PROSTHO_SHOTS } from "@/lib/specialty";
 import { useClinic } from "@/lib/store";
 import type { Patient, PhotoCategory, PhotoMeta } from "@/lib/types";
-import { ALL_FDI } from "@/lib/teeth";
+import { ToothFdiOptions } from "@/components/odontogram";
 
 function usePhotoUrl(id: string | undefined) {
   const [url, setUrl] = useState<string>();
@@ -367,11 +367,7 @@ export function PhotoViewer({
               onChange={(e) => updatePhoto(photo.id, { toothFdi: e.target.value ? Number(e.target.value) : undefined })}
             >
               <option value="">Не указан</option>
-              {ALL_FDI.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
+              <ToothFdiOptions />
             </Select>
           </Field>
           <Field label="Описание">

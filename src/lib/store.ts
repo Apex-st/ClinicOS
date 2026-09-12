@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clearAllPhotoBlobs, deletePhotoBlobs } from "./photos-idb";
-import { buildSeed, defaultSettings, seedDiaryTemplates, seedDiscountTypes, seedDoctors, seedServiceGroups } from "./seed";
+import { buildSeed, defaultSettings, seedCharts, seedDiaryTemplates, seedDiscountTypes, seedDoctors, seedPatients, seedServiceGroups } from "./seed";
 import { diagnosisToTooth, emptyDiary, emptyFinding, enrichDiaryTemplates, suggestVisitKind, treatmentToTooth } from "./diary";
 import { nextAfter, seedBudgetCategories } from "./budget";
 import { seedStockGroups, seedStockItems, usedMaterialIds } from "./stock";
@@ -10,7 +10,7 @@ import { seedMessageTemplates, seedNotifyRules } from "./messages";
 import { seedTags } from "./patient-meta";
 import { emptyDiaryExtras } from "./stats";
 import { mergeOrtho, mergeProstho } from "./specialty";
-import { ALL_FDI, normalizeTooth } from "./teeth";
+import { ALL_CHART_FDI, normalizeTooth } from "./teeth";
 import type {
   Appointment,
   BudgetCategory,
@@ -178,14 +178,16 @@ export type ClinicState = ClinicData & ClinicActions;
 
 function emptyChart(): Chart {
   const chart: Chart = {};
-  for (const fdi of ALL_FDI) chart[fdi] = { status: "healthy", note: "" };
+  for (const fdi of ALL_CHART_FDI) chart[fdi] = { status: "healthy", note: "" };
   return chart;
 }
 
 function normalizeChart(chart: Chart | undefined): Chart {
   const base = emptyChart();
   if (!chart) return base;
-  for (const fdi of ALL_FDI) {
+  for (const key of Object.keys(chart)) {
+    const fdi = Number(key);
+    if (!Number.isFinite(fdi)) continue;
     base[fdi] = normalizeTooth(chart[fdi]);
   }
   return base;
@@ -1058,7 +1060,7 @@ export const useClinic = create<ClinicState>()(
     }),
     {
       name: "denta-clinic-v1",
-      version: 15,
+      version: 16,
       skipHydration: true,
       partialize: (s) => ({
         patients: s.patients,
@@ -1108,14 +1110,23 @@ export const useClinic = create<ClinicState>()(
               if (!p.cardNumber) p.cardNumber = `МК-${1001 + i}`;
             });
           }
+          if (!patients.some((p) => p.id === "p_smirnova")) {
+            const child = seedPatients().find((p) => p.id === "p_smirnova");
+            if (child) patients.push(child);
+          }
+          const charts = raw.charts
+            ? Object.fromEntries(Object.entries(raw.charts).map(([pid, ch]) => [pid, normalizeChart(ch as Chart)]))
+            : {};
+          if (!charts.p_smirnova) {
+            const seeded = seedCharts().p_smirnova;
+            if (seeded) charts.p_smirnova = seeded;
+          }
           return {
             ...raw,
             patients,
             photos: raw.photos ?? [],
             albums: raw.albums ?? [],
-            charts: raw.charts
-              ? Object.fromEntries(Object.entries(raw.charts).map(([pid, ch]) => [pid, normalizeChart(ch as Chart)]))
-              : raw.charts,
+            charts,
             plans: (raw.plans ?? []).map((p) => ({
               ...p,
               doctorName: p.doctorName || "",

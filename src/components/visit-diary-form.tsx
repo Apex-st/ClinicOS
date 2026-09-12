@@ -21,7 +21,7 @@ import {
 } from "@/lib/diary";
 import { DiagnosisField } from "@/components/diagnosis-field";
 import { slotTaken, isBlocking } from "@/lib/clinic";
-import { ALL_FDI } from "@/lib/teeth";
+import { ToothFdiOptions } from "@/components/odontogram";
 import { useClinic } from "@/lib/store";
 import type { DiaryExtras, DiaryTemplate, VisitDiary, VisitFinding, VisitKind } from "@/lib/types";
 import { MaterialPicker } from "@/components/material-picker";
@@ -204,11 +204,7 @@ export function VisitDiaryForm({
                     }
                   >
                     <option value="">Зуб</option>
-                    {ALL_FDI.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
+                    <ToothFdiOptions />
                   </Select>
                   <button
                     type="button"

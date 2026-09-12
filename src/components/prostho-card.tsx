@@ -22,7 +22,7 @@ import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatDate, fullName, money, todayISO } from "@/lib/format";
+import { ageYears, formatDate, fullName, money, todayISO } from "@/lib/format";
 import { emptyPlanItem } from "@/lib/plan-groups";
 import { buildProsthoPdfBlob, prosthoSections, specialtyHtml } from "@/lib/specialty-pdf";
 import {
@@ -223,6 +223,7 @@ export function ProsthoCardPanel({ patientId }: { patientId: string }) {
           markOptions={PROSTHO_MARKS}
           onMarksChange={(fdi, next) => save({ teethMarks: { ...card.teethMarks, [String(fdi)]: next } })}
           hint="FDI · состояние и ортопедические отметки"
+          patientAge={ageYears(patient.birthDate)}
         />
       </SpecSection>
 

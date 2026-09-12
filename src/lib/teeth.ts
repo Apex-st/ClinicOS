@@ -12,19 +12,96 @@ export const ALL_FDI = [
   ...LOWER_LEFT,
 ] as const;
 
-export type Fdi = (typeof ALL_FDI)[number];
+export const PRIMARY_UPPER_RIGHT = [55, 54, 53, 52, 51] as const;
+export const PRIMARY_UPPER_LEFT = [61, 62, 63, 64, 65] as const;
+export const PRIMARY_LOWER_RIGHT = [85, 84, 83, 82, 81] as const;
+export const PRIMARY_LOWER_LEFT = [71, 72, 73, 74, 75] as const;
+
+export const ALL_PRIMARY_FDI = [
+  ...PRIMARY_UPPER_RIGHT,
+  ...PRIMARY_UPPER_LEFT,
+  ...PRIMARY_LOWER_RIGHT,
+  ...PRIMARY_LOWER_LEFT,
+] as const;
+
+export const ALL_CHART_FDI = [...ALL_FDI, ...ALL_PRIMARY_FDI] as const;
+
+export type Fdi = (typeof ALL_CHART_FDI)[number];
+
+export type DentitionMode = "permanent" | "primary" | "mixed";
+
+export const DENTITION_MODE_OPTIONS: readonly (readonly [DentitionMode, string])[] = [
+  ["permanent", "Постоянный"],
+  ["primary", "Молочный"],
+  ["mixed", "Смешанный"],
+];
+
+export function isPrimary(fdi: number) {
+  const q = Math.floor(fdi / 10);
+  return q >= 5 && q <= 8;
+}
 
 export function isUpper(fdi: number) {
   const q = Math.floor(fdi / 10);
-  return q === 1 || q === 2;
+  return q === 1 || q === 2 || q === 5 || q === 6;
 }
 
 export function toothKind(fdi: number): "incisor" | "canine" | "premolar" | "molar" {
   const n = fdi % 10;
+  if (isPrimary(fdi)) {
+    if (n <= 2) return "incisor";
+    if (n === 3) return "canine";
+    return "molar";
+  }
   if (n <= 2) return "incisor";
   if (n === 3) return "canine";
   if (n <= 5) return "premolar";
   return "molar";
+}
+
+export function toothTypeName(fdi: number): string {
+  const n = fdi % 10;
+  if (isPrimary(fdi)) {
+    if (n === 1) return "Центральный резец";
+    if (n === 2) return "Боковой резец";
+    if (n === 3) return "Клык";
+    if (n === 4) return "Первый моляр";
+    return "Второй моляр";
+  }
+  if (n === 1) return "Центральный резец";
+  if (n === 2) return "Боковой резец";
+  if (n === 3) return "Клык";
+  if (n === 4) return "Первый премоляр";
+  if (n === 5) return "Второй премоляр";
+  if (n === 6) return "Первый моляр";
+  if (n === 7) return "Второй моляр";
+  return "Третий моляр";
+}
+
+export const PERMANENT_TYPE_LEGEND: readonly { n: number; label: string; sample: number }[] = [
+  { n: 1, label: "Центральный резец (1)", sample: 11 },
+  { n: 2, label: "Боковой резец (2)", sample: 12 },
+  { n: 3, label: "Клык (3)", sample: 13 },
+  { n: 4, label: "Первый премоляр (4)", sample: 14 },
+  { n: 5, label: "Второй премоляр (5)", sample: 15 },
+  { n: 6, label: "Первый моляр (6)", sample: 16 },
+  { n: 7, label: "Второй моляр (7)", sample: 17 },
+  { n: 8, label: "Третий моляр (8)", sample: 18 },
+];
+
+export const PRIMARY_TYPE_LEGEND: readonly { n: number; label: string; sample: number }[] = [
+  { n: 1, label: "Центральный резец (1)", sample: 51 },
+  { n: 2, label: "Боковой резец (2)", sample: 52 },
+  { n: 3, label: "Клык (3)", sample: 53 },
+  { n: 4, label: "Первый моляр (4)", sample: 54 },
+  { n: 5, label: "Второй моляр (5)", sample: 55 },
+];
+
+export function suggestDentition(age: number | null | undefined): DentitionMode {
+  if (age == null || !Number.isFinite(age)) return "permanent";
+  if (age < 6) return "primary";
+  if (age < 13) return "mixed";
+  return "permanent";
 }
 
 export const TOOTH_STATUS_LABEL: Record<ToothStatus, string> = {
@@ -102,3 +179,8 @@ export function toothSurfaceStatus(state: ToothState, s: ToothSurface): ToothSta
   }
   return state.status;
 }
+
+export const FDI_SELECT_GROUPS: readonly { label: string; values: readonly number[] }[] = [
+  { label: "Постоянные", values: ALL_FDI },
+  { label: "Молочные", values: ALL_PRIMARY_FDI },
+];

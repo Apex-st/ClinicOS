@@ -3,7 +3,7 @@ import { planTotals } from "./discounts";
 import { formatDate, fullName, money } from "./format";
 import { embedPdfFonts, pdfBlobFromBytes } from "./pdf-fonts";
 import { groupPlanItems } from "./plan-groups";
-import { LOWER_LEFT, LOWER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
+import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
 import type { Chart, DiscountType, Patient, Settings, ToothStatus, TreatmentPlan } from "./types";
 
 const PAGE_W = 595.28;
@@ -75,7 +75,6 @@ function toothInk(status: ToothStatus) {
 function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont, bold: PDFFont) {
   const inner = PAGE_W - M * 2;
   const gap = 2;
-  const box = (inner - gap * 15) / 16;
   const h = 16;
   let y = yTop;
 
@@ -83,16 +82,18 @@ function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont
   y -= 14;
 
   const row = (fdis: readonly number[], numbersAbove: boolean) => {
+    const n = Math.max(fdis.length, 1);
+    const cell = (inner - gap * (n - 1)) / n;
     fdis.forEach((fdi, i) => {
       const st = normalizeTooth(chart[fdi]).status;
-      const x = M + i * (box + gap);
+      const x = M + i * (cell + gap);
       const numY = numbersAbove ? y : y - h - 9;
       const boxY = numbersAbove ? y - 11 - h : y - h;
-      drawText(page, String(fdi), x + Math.max(0, (box - font.widthOfTextAtSize(String(fdi), 6)) / 2), numY, font, 6, MUTED);
+      drawText(page, String(fdi), x + Math.max(0, (cell - font.widthOfTextAtSize(String(fdi), 6)) / 2), numY, font, 6, MUTED);
       page.drawRectangle({
         x,
         y: boxY,
-        width: box,
+        width: cell,
         height: h,
         color: TOOTH_FILL[st],
         borderColor: LINE,
@@ -110,8 +111,18 @@ function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont
   y -= 6;
   y = row([...LOWER_RIGHT, ...LOWER_LEFT], false);
 
+  const primaryUsed = ALL_PRIMARY_FDI.some((fdi) => normalizeTooth(chart[fdi]).status !== "healthy");
+  if (primaryUsed) {
+    y -= 4;
+    drawText(page, "Молочный прикус", M, y, bold, 9);
+    y -= 12;
+    y = row([...PRIMARY_UPPER_RIGHT, ...PRIMARY_UPPER_LEFT], true);
+    y -= 6;
+    y = row([...PRIMARY_LOWER_RIGHT, ...PRIMARY_LOWER_LEFT], false);
+  }
+
   const used = new Set<ToothStatus>();
-  for (const fdi of [...UPPER_RIGHT, ...UPPER_LEFT, ...LOWER_RIGHT, ...LOWER_LEFT]) {
+  for (const fdi of [...UPPER_RIGHT, ...UPPER_LEFT, ...LOWER_RIGHT, ...LOWER_LEFT, ...ALL_PRIMARY_FDI]) {
     const st = normalizeTooth(chart[fdi]).status;
     if (st !== "healthy") used.add(st);
   }

@@ -18,6 +18,7 @@ import { SendPatientDialog } from "@/components/send-patient";
 import { amountForType, describeDiscount, planTotals } from "@/lib/discounts";
 import {
   DISCOUNT_CATEGORY_LABEL,
+  ageYears,
   formatDate,
   fullName,
   money,
@@ -252,6 +253,7 @@ export function PlanEditor({
           picked={[...usedTeeth]}
           title="Формула пациента"
           hint="Повторное нажатие убирает зуб из плана"
+          patientAge={ageYears(patient?.birthDate ?? "")}
           onPick={(fdi) => {
             if (usedTeeth.has(fdi)) {
               setItems((prev) => {

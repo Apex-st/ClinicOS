@@ -24,7 +24,7 @@ import { emptyDiaryExtras } from "@/lib/stats";
 import { fullName, groupLabel, money, todayISO } from "@/lib/format";
 import { amountForType, describeDiscount } from "@/lib/discounts";
 import { slotTaken, isBlocking } from "@/lib/clinic";
-import { ALL_FDI } from "@/lib/teeth";
+import { ToothFdiOptions } from "@/components/odontogram";
 import { useClinic } from "@/lib/store";
 import type { Appointment, DiaryTemplate, PaymentMethod, Visit, VisitDiary, VisitItem, VisitKind } from "@/lib/types";
 import { uid } from "@/lib/utils";
@@ -398,11 +398,7 @@ export function VisitDialog({
                           }
                         >
                           <option value="">Зуб</option>
-                          {ALL_FDI.map((f) => (
-                            <option key={f} value={f}>
-                              {f}
-                            </option>
-                          ))}
+                          <ToothFdiOptions />
                         </Select>
                         <NumericInput
                           className="h-9"
