@@ -35,11 +35,11 @@ function withTeeth(entries: Array<[number, ToothState]>): Chart {
 
 export function defaultSettings(): Settings {
   return {
-    clinicName: "Дента",
+    clinicName: "ClinicOS",
     doctorName: "Иванов А. С.",
     phone: "+7 (495) 120-40-18",
     address: "Москва, один кабинет",
-    legalName: "Дента",
+    legalName: "ClinicOS",
     inn: "",
     requisites: "",
     slotMinutes: 30,

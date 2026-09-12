@@ -129,7 +129,7 @@ function SettingsPage() {
       } else if (result.how === "shared") {
         toast.success("Выберите, куда сохранить файл");
       } else {
-        toast.success("Файл скачивается. В Android-программе копия пишется в Документы/Denta.");
+        toast.success("Файл скачивается. В Android-программе копия пишется в Документы/ClinicOS.");
       }
     } catch {
       toast.error("Не удалось сохранить копию");
@@ -260,7 +260,7 @@ function SettingsPage() {
 
       <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
         <h2 className="font-display text-lg">Приветствие</h2>
-        <p className="mt-1 text-sm text-muted">Показывается на экране загрузки вместо названия «Дента».</p>
+        <p className="mt-1 text-sm text-muted">Показывается на экране загрузки вместо названия «ClinicOS».</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label="Фраза">
             <Select
@@ -551,7 +551,7 @@ function SettingsPage() {
       <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
         <h2 className="font-display text-lg">Резервная копия</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
-          Копия — файл на этом устройстве, не облако. «Сохранить копию» пишет архив zip в папку Документы/Denta и
+          Копия — файл на этом устройстве, не облако. «Сохранить копию» пишет архив zip в папку Документы/ClinicOS и
           предлагает «Поделиться» (Telegram, Диск, флешка). «Восстановить» — выберите этот архив или старый JSON.
           Совпадения карточек программа не сливает сама.
         </p>

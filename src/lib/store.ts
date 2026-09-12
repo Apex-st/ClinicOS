@@ -276,6 +276,11 @@ function normalizePatient(p: Patient): Patient {
 
 const seed = buildSeed();
 
+function brandName(name?: string) {
+  if (!name || name === "Дента" || name === "Denta") return "ClinicOS";
+  return name;
+}
+
 export const useClinic = create<ClinicState>()(
   persist(
     (set, get) => ({
@@ -1053,7 +1058,7 @@ export const useClinic = create<ClinicState>()(
     }),
     {
       name: "denta-clinic-v1",
-      version: 14,
+      version: 15,
       skipHydration: true,
       partialize: (s) => ({
         patients: s.patients,
@@ -1159,6 +1164,8 @@ export const useClinic = create<ClinicState>()(
               openingBalance: Math.round(Number(raw.settings?.openingBalance) || 0),
               openingDate: raw.settings?.openingDate || "",
               customPayMethods: raw.settings?.customPayMethods ?? [],
+              clinicName: brandName(raw.settings?.clinicName),
+              legalName: brandName(raw.settings?.legalName),
             },
           } as ClinicData;
         } catch {
@@ -1185,6 +1192,8 @@ export const useClinic = create<ClinicState>()(
             openingBalance: Math.round(Number(p.settings?.openingBalance ?? current.settings.openingBalance) || 0),
             openingDate: p.settings?.openingDate ?? current.settings.openingDate ?? "",
             customPayMethods: p.settings?.customPayMethods ?? current.settings.customPayMethods ?? [],
+            clinicName: brandName(p.settings?.clinicName ?? current.settings.clinicName),
+            legalName: brandName(p.settings?.legalName ?? current.settings.legalName),
           },
           photos: p.photos ?? current.photos ?? [],
           albums: p.albums ?? current.albums ?? [],

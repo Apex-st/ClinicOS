@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { Fragment, useState, type CSSProperties } from "react";
 import { ChipToggle } from "@/components/chip-toggle";
 import { ToothGlyph, STATUS_CLASS } from "@/components/tooth-glyph";
 import { Button } from "./ui/button";
@@ -23,6 +23,43 @@ import type { Chart, ToothState, ToothStatus, ToothSurface } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export { STATUS_CLASS };
+
+function GumBand() {
+  const n = 16;
+  const left = 18;
+  const right = 622;
+  const midY = 18;
+  const amp = 7;
+  const step = (right - left) / n;
+  let d = `M ${left} ${midY}`;
+  for (let i = 0; i < n; i++) {
+    const x1 = left + (i + 1) * step;
+    const xc = left + i * step + step / 2;
+    d += ` Q ${xc} ${midY - amp} ${x1} ${midY}`;
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    const x1 = left + i * step;
+    const xc = left + i * step + step / 2;
+    d += ` Q ${xc} ${midY + amp} ${x1} ${midY}`;
+  }
+  d += " Z";
+  return (
+    <svg viewBox="0 0 640 36" className="mx-auto h-5 w-full max-w-[42rem] overflow-visible" aria-hidden>
+      <path d={d} fill="var(--color-tooth-gum)" opacity="0.95" />
+      <path
+        d={`M ${left} ${midY - 1} ${Array.from({ length: n }, (_, i) => {
+          const x1 = left + (i + 1) * step;
+          const xc = left + i * step + step / 2;
+          return `Q ${xc} ${midY - amp - 1} ${x1} ${midY - 1}`;
+        }).join(" ")}`}
+        fill="none"
+        stroke="rgba(255,255,255,0.4)"
+        strokeWidth="1.1"
+      />
+      <line x1="320" y1="3" x2="320" y2="33" stroke="var(--color-ink)" strokeOpacity="0.22" strokeWidth="1.1" />
+    </svg>
+  );
+}
 
 function archStyle(index: number, total: number, upper: boolean): CSSProperties {
   const t = total <= 1 ? 0 : (index / (total - 1)) * 2 - 1;
@@ -94,18 +131,26 @@ function Arch({
   upper: boolean;
 }) {
   const all = [...right, ...left];
+  const split = right.length;
   return (
     <div className={cn("flex justify-center gap-px sm:gap-0.5", upper ? "items-end pb-1" : "items-start pt-1")}>
       {all.map((fdi, i) => (
-        <ToothButton
-          key={fdi}
-          fdi={fdi}
-          state={normalizeTooth(chart[fdi])}
-          picked={picked?.has(fdi)}
-          badge={markLetters(marks?.[String(fdi)] ?? [])}
-          style={archStyle(i, all.length, upper)}
-          onClick={() => onSelect(fdi)}
-        />
+        <Fragment key={fdi}>
+          {i === split ? (
+            <span
+              aria-hidden
+              className={cn("w-px shrink-0 self-stretch bg-ink/20", upper ? "mb-5" : "mt-5")}
+            />
+          ) : null}
+          <ToothButton
+            fdi={fdi}
+            state={normalizeTooth(chart[fdi])}
+            picked={picked?.has(fdi)}
+            badge={markLetters(marks?.[String(fdi)] ?? [])}
+            style={archStyle(i, all.length, upper)}
+            onClick={() => onSelect(fdi)}
+          />
+        </Fragment>
       ))}
     </div>
   );
@@ -262,8 +307,8 @@ export function Odontogram({
             marks={marks}
             onSelect={open}
           />
-          <div className="relative mx-8 h-3">
-            <div className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-tooth-gum" />
+          <div className="relative mx-2 sm:mx-4">
+            <GumBand />
           </div>
           <Arch
             upper={false}

@@ -17,22 +17,35 @@ export const STATUS_CLASS: Record<ToothStatus, string> = {
   bridge: "bg-tooth-bridge text-primary-fg",
 };
 
-function paint(status: ToothStatus) {
+type Kind = ReturnType<typeof toothKind>;
+
+function spec(fdi: number) {
+  const n = fdi % 10;
+  const upper = isUpper(fdi);
+  const kind = toothKind(fdi);
+  const roots = n <= 3 ? 1 : n === 4 && upper ? 2 : n === 5 ? 1 : upper ? 3 : 2;
+  const width = n === 1 ? 1.18 : n === 2 ? 0.92 : n === 3 ? 1 : n === 4 ? 1.06 : n === 5 ? 1.02 : n === 6 ? 1.34 : n === 7 ? 1.22 : 0.96;
+  return { n, upper, kind, roots, width, wisdom: n === 8 };
+}
+
+function enamelColor(status: ToothStatus) {
+  if (status === "healthy" || status === "veneer") return "#f6f0e4";
+  if (status === "missing" || status === "extracted") return "transparent";
   return `var(--color-tooth-${status})`;
 }
 
 function surfacePaint(state: ToothState, surface?: ToothSurface) {
   const st = surface ? toothSurfaceStatus(state, surface) : state.status;
-  return paint(st);
+  return enamelColor(st);
 }
 
 const SIZE = {
-  sm: { molar: 22, premolar: 18, canine: 16, incisor: 15, h: 50 },
-  md: { molar: 24, premolar: 19, canine: 17, incisor: 16, h: 56 },
-  lg: { molar: 76, premolar: 64, canine: 58, incisor: 54, h: 156 },
+  sm: { unit: 18, h: 56 },
+  md: { unit: 20, h: 64 },
+  lg: { unit: 58, h: 176 },
 } as const;
 
-/** Лицевой вид: корень кверху, коронка книзу. Нижние зубы зеркалим. */
+/** Лицевой вид: корни кверху, коронка книзу. Нижние зубы зеркалим. */
 export function ToothGlyph({
   fdi,
   state,
@@ -44,19 +57,18 @@ export function ToothGlyph({
   picked?: boolean;
   size?: "sm" | "md" | "lg";
 }) {
-  const upper = isUpper(fdi);
-  const kind = toothKind(fdi);
-  const n = fdi % 10;
-  const q = Math.floor(fdi / 10);
-  const rightSide = q === 1 || q === 4;
+  const s = spec(fdi);
   const gone = state.status === "missing" || state.status === "extracted";
   const uid = `t${fdi}-${size}`;
   const dim = SIZE[size];
-  const w = dim[kind] * (n === 1 && kind === "incisor" ? 1.1 : n === 8 ? 0.9 : 1);
+  const w = dim.unit * s.width;
+  const q = Math.floor(fdi / 10);
+  const rightSide = q === 1 || q === 4;
+  const tilt = s.wisdom ? (rightSide ? -7 : 7) : 0;
 
   return (
     <svg
-      viewBox="0 0 44 88"
+      viewBox="0 0 56 112"
       width={w}
       height={dim.h}
       className={cn("overflow-visible", picked && "drop-shadow-[0_0_0_2px_var(--color-primary)]")}
@@ -64,120 +76,122 @@ export function ToothGlyph({
     >
       <title>{`${fdi} · ${TOOTH_STATUS_LABEL[state.status]}`}</title>
       <defs>
-        <linearGradient id={`${uid}-en`} x1="10" y1="34" x2="34" y2="82" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor={surfacePaint(state)} />
-          <stop offset="42%" stopColor={surfacePaint(state)} />
-          <stop offset="100%" stopColor="var(--color-ink)" stopOpacity="0.16" />
+        <linearGradient id={`${uid}-en`} x1="18" y1="46" x2="40" y2="104" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor={state.status === "crown" ? "#f4edd4" : "#fffdf8"} />
+          <stop offset="38%" stopColor={surfacePaint(state)} />
+          <stop offset="100%" stopColor={state.status === "crown" ? "#6e624c" : "#d8c7ad"} />
         </linearGradient>
-        <linearGradient id={`${uid}-rt`} x1="22" y1="2" x2="22" y2="36" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="var(--color-tooth-root)" stopOpacity="0.72" />
-          <stop offset="100%" stopColor="var(--color-tooth-root)" />
+        <linearGradient id={`${uid}-rt`} x1="28" y1="2" x2="28" y2="48" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#e2c49a" />
+          <stop offset="55%" stopColor="#c9a06f" />
+          <stop offset="100%" stopColor="#a9845c" />
         </linearGradient>
-        <radialGradient id={`${uid}-pulp`} cx="50%" cy="58%" r="42%">
-          <stop offset="0%" stopColor="var(--color-tooth-pulpitis)" />
-          <stop offset="70%" stopColor="var(--color-tooth-pulpitis)" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="var(--color-tooth-pulpitis)" stopOpacity="0.2" />
+        <radialGradient id={`${uid}-pulp`} cx="50%" cy="62%" r="44%">
+          <stop offset="0%" stopColor="#e45b5b" />
+          <stop offset="55%" stopColor="var(--color-tooth-pulpitis)" />
+          <stop offset="100%" stopColor="var(--color-tooth-pulpitis)" stopOpacity="0.15" />
         </radialGradient>
-        <radialGradient id={`${uid}-gran`} cx="40%" cy="40%" r="70%">
-          <stop offset="0%" stopColor="var(--color-tooth-periodontitis)" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="var(--color-ink)" stopOpacity="0.45" />
+        <radialGradient id={`${uid}-gran`} cx="38%" cy="38%" r="70%">
+          <stop offset="0%" stopColor="#f0b27a" />
+          <stop offset="70%" stopColor="var(--color-tooth-periodontitis)" />
+          <stop offset="100%" stopColor="#6b3a12" stopOpacity="0.55" />
         </radialGradient>
+        <filter id={`${uid}-sh`} x="-30%" y="-8%" width="160%" height="140%">
+          <feDropShadow dx="0" dy="1.15" stdDeviation="1.15" floodColor="#4a3724" floodOpacity="0.28" />
+        </filter>
         <clipPath id={`${uid}-c`}>
-          <path d={crownPath(kind, n)} />
+          <path d={crownPath(s.kind, s.n)} />
         </clipPath>
       </defs>
-      <g transform={upper ? undefined : "translate(0 88) scale(1 -1)"}>
-        {state.status === "periodontitis" && !gone ? <Granulomas kind={kind} uid={uid} /> : null}
-        {state.status === "implant" ? <Implant uid={uid} /> : <Roots kind={kind} gone={gone} fill={`url(#${uid}-rt)`} />}
-        {state.status === "root" ? (
-          <path
-            d="M14 34 C13 40 14 46 22 48 C30 46 31 40 30 34"
-            fill="none"
-            stroke="var(--color-tooth-root)"
-            strokeWidth="1.3"
-          />
-        ) : (
-          <Crown uid={uid} kind={kind} n={n} state={state} rightSide={rightSide} gone={gone} />
-        )}
+      <g filter={gone ? undefined : `url(#${uid}-sh)`} transform={s.upper ? undefined : "translate(0 112) scale(1 -1)"}>
+        <g transform={tilt ? `rotate(${tilt} 28 56)` : undefined}>
+          {state.status === "periodontitis" && !gone ? <Granulomas roots={s.roots} uid={uid} /> : null}
+          {state.status === "implant" ? <Implant uid={uid} /> : <Roots count={s.roots} kind={s.kind} gone={gone} fill={`url(#${uid}-rt)`} />}
+          {state.status === "root" ? (
+            <path
+              d="M18 46 C17 54 18 62 28 64 C38 62 39 54 38 46"
+              fill="none"
+              stroke="#a9845c"
+              strokeWidth="1.4"
+            />
+          ) : (
+            <Crown uid={uid} kind={s.kind} n={s.n} state={state} rightSide={rightSide} gone={gone} />
+          )}
+        </g>
       </g>
     </svg>
   );
 }
 
 function Roots({
+  count,
   kind,
   gone,
   fill,
 }: {
-  kind: ReturnType<typeof toothKind>;
+  count: number;
+  kind: Kind;
   gone: boolean;
   fill: string;
 }) {
-  const stroke = gone ? "var(--color-subtle)" : "var(--color-ink)";
-  const sw = 0.8;
-  const op = gone ? 0.32 : 1;
-  if (kind === "molar") {
+  const stroke = gone ? "var(--color-subtle)" : "#7a5a38";
+  const sw = 0.85;
+  const op = gone ? 0.28 : 1;
+  const common = { fill: gone ? "none" : fill, stroke, strokeWidth: sw, opacity: op, strokeLinejoin: "round" as const };
+  if (count === 3) {
     return (
-      <g fill={gone ? "none" : fill} stroke={stroke} strokeWidth={sw} opacity={op} strokeLinejoin="round">
-        <path d="M9.2 35 C7 22 6.6 12 10.2 5.2 C12.2 1.4 16 1.8 17.2 8.2 L18.2 35 Z" />
-        <path d="M18 35 L19.2 6.5 C20.2 2 24.4 2 25.4 6.8 L26.6 35 Z" />
-        <path d="M25.6 35 L27 10 C28.6 3.4 33.4 3.6 34.4 10 C35.2 18 34 27 32.8 35 Z" />
+      <g {...common}>
+        <path d="M10.2 46 C7.4 28 7 14 12.2 5.2 C14.8 0.8 19.4 1.4 20.8 10 L22.2 46 Z" />
+        <path d="M21.4 46 L22.8 8 C24 2.2 29.6 2 30.8 8.6 L32.2 46 Z" />
+        <path d="M31.4 46 L33.4 12 C35.2 3.6 41.6 4 42.8 12.4 C44 24 42.2 36 40.4 46 Z" />
       </g>
     );
   }
-  if (kind === "premolar") {
+  if (count === 2) {
     return (
-      <g fill={gone ? "none" : fill} stroke={stroke} strokeWidth={sw} opacity={op} strokeLinejoin="round">
-        <path d="M14.2 35 C12.4 20 12 10 16.4 4.2 C18.6 1.4 22.2 2.2 23.2 8.4 L24 35 Z" />
-        <path d="M23.2 35 L25.2 12 C26.4 5.6 30.8 5.6 31.6 12 L30.2 35 Z" />
+      <g {...common}>
+        <path d="M14.4 46 C11.8 26 11.2 12 16.8 4.4 C19.4 1 24.2 2 25.4 9.6 L26.6 46 Z" />
+        <path d="M27.2 46 L29.4 12 C31 4.4 37.2 4.6 38.4 12.2 L36.8 46 Z" />
       </g>
     );
   }
   if (kind === "canine") {
     return (
       <path
-        d="M17.2 35 C15.6 20 14.6 8.5 18.4 2 C20.8 -0.6 25.2 0.6 26.4 8 C27.4 16.5 26 26 24.6 35 Z"
-        fill={gone ? "none" : fill}
-        stroke={stroke}
-        strokeWidth={sw}
-        opacity={op}
-        strokeLinejoin="round"
+        d="M20.2 46 C18.2 24 16.8 8 21.6 1.2 C24.6 -1.6 30.4 0.2 31.6 9 C33 22 31.2 36 29.6 46 Z"
+        {...common}
       />
     );
   }
   return (
     <path
-      d="M16.6 35 C15.4 20 15.6 9 19 3.4 C21.4 0.6 25.6 1 27 6 C28.2 13 27 24 25.6 35 Z"
-      fill={gone ? "none" : fill}
-      stroke={stroke}
-      strokeWidth={sw}
-      opacity={op}
-      strokeLinejoin="round"
+      d="M19.4 46 C17.8 24 18 10 22.4 3.2 C25.2 0.2 30.6 0.8 32 7.4 C33.4 16 32.2 32 30.6 46 Z"
+      {...common}
     />
   );
 }
 
-function Granulomas({ kind, uid }: { kind: ReturnType<typeof toothKind>; uid: string }) {
+function Granulomas({ roots, uid }: { roots: number; uid: string }) {
   const fill = `url(#${uid}-gran)`;
   const stroke = "var(--color-tooth-periodontitis)";
-  if (kind === "molar") {
+  if (roots === 3) {
     return (
-      <g fill={fill} stroke={stroke} strokeWidth="0.6" opacity="0.95">
-        <ellipse cx="13.4" cy="5.2" rx="4.2" ry="3.8" />
-        <ellipse cx="22.2" cy="3.4" rx="3.8" ry="3.4" />
-        <ellipse cx="31.2" cy="6.2" rx="4" ry="3.6" />
+      <g fill={fill} stroke={stroke} strokeWidth="0.55">
+        <ellipse cx="15.4" cy="5.4" rx="4.4" ry="4" />
+        <ellipse cx="26.4" cy="3.2" rx="4" ry="3.6" />
+        <ellipse cx="38.2" cy="7" rx="4.2" ry="3.8" />
       </g>
     );
   }
-  if (kind === "premolar") {
+  if (roots === 2) {
     return (
-      <g fill={fill} stroke={stroke} strokeWidth="0.6">
-        <ellipse cx="19.2" cy="4.4" rx="4.1" ry="3.7" />
-        <ellipse cx="28.4" cy="7.2" rx="3.6" ry="3.2" />
+      <g fill={fill} stroke={stroke} strokeWidth="0.55">
+        <ellipse cx="20.2" cy="4.6" rx="4.4" ry="4" />
+        <ellipse cx="33.6" cy="7.2" rx="3.8" ry="3.4" />
       </g>
     );
   }
-  return <ellipse cx="22" cy="3.6" rx="4.6" ry="4.1" fill={fill} stroke={stroke} strokeWidth="0.65" />;
+  return <ellipse cx="26.4" cy="3.4" rx="5" ry="4.4" fill={fill} stroke={stroke} strokeWidth="0.6" />;
 }
 
 function Implant({ uid }: { uid: string }) {
@@ -185,20 +199,21 @@ function Implant({ uid }: { uid: string }) {
     <g>
       <defs>
         <clipPath id={`${uid}-imp`}>
-          <path d="M17.4 35 L18.6 8 C19.4 3.6 23.8 3.6 24.6 8 L25.8 35 Z" />
+          <path d="M21.2 46 L22.6 9 C23.6 3.8 29.2 3.8 30.2 9 L31.6 46 Z" />
         </clipPath>
       </defs>
       <path
-        d="M17.4 35 L18.6 8 C19.4 3.6 23.8 3.6 24.6 8 L25.8 35 Z"
+        d="M21.2 46 L22.6 9 C23.6 3.8 29.2 3.8 30.2 9 L31.6 46 Z"
         fill="var(--color-tooth-implant)"
         stroke="var(--color-ink)"
         strokeOpacity="0.35"
         strokeWidth="0.8"
       />
-      <g clipPath={`url(#${uid}-imp)`} stroke="var(--color-ink)" strokeOpacity="0.45" strokeWidth="1.2">
-        <path d="M16 12 H28 M16 16 H28 M16 20 H28 M16 24 H28 M16 28 H28 M16 32 H28" />
+      <g clipPath={`url(#${uid}-imp)`} stroke="var(--color-ink)" strokeOpacity="0.4" strokeWidth="1.15">
+        <path d="M20 14 H34 M20 19 H34 M20 24 H34 M20 29 H34 M20 34 H34 M20 39 H34" />
       </g>
-      <path d="M18.6 35 H25.4 L26.2 38.5 H17.8 Z" fill="var(--color-tooth-implant)" />
+      <path d="M22 46 H31.6 L33 51 H20.6 Z" fill="var(--color-tooth-implant)" />
+      <ellipse cx="26.8" cy="54" rx="8.4" ry="4.2" fill="var(--color-tooth-implant)" opacity="0.9" />
     </g>
   );
 }
@@ -212,7 +227,7 @@ function Crown({
   gone,
 }: {
   uid: string;
-  kind: ReturnType<typeof toothKind>;
+  kind: Kind;
   n: number;
   state: ToothState;
   rightSide: boolean;
@@ -227,138 +242,168 @@ function Crown({
   const filling = state.status === "filling";
   const caries = state.status === "caries";
   const mesialLeft = !rightSide;
-  const fill = gone ? "none" : split ? "var(--color-tooth-healthy)" : `url(#${uid}-en)`;
+  const fill = gone ? "none" : split ? "#f6f0e4" : `url(#${uid}-en)`;
 
   return (
     <g>
       <path
         d={d}
         fill={fill}
-        stroke={gone ? "var(--color-subtle)" : "var(--color-ink)"}
-        strokeOpacity={gone ? 0.5 : 0.42}
-        strokeWidth="1.2"
+        stroke={gone ? "var(--color-subtle)" : "#8a7358"}
+        strokeOpacity={gone ? 0.5 : 0.45}
+        strokeWidth="1.15"
         strokeLinejoin="round"
         strokeDasharray={gone ? "2.4 1.8" : undefined}
       />
       {split && !gone ? (
         <g clipPath={`url(#${uid}-c)`}>
-          <rect x="6" y="36" width="32" height="32" fill={surfacePaint(state, "B")} />
-          <path d="M6 64 H38 V84 H6 Z" fill={surfacePaint(state, "O")} />
-          <path d="M8 32 H36 V40 H8 Z" fill={surfacePaint(state, "L")} />
-          <rect x={mesialLeft ? 2 : 26} y="34" width="16" height="44" fill={surfacePaint(state, "M")} />
-          <rect x={mesialLeft ? 26 : 2} y="34" width="16" height="44" fill={surfacePaint(state, "D")} />
-          <path d={d} fill="none" stroke="var(--color-ink)" strokeOpacity="0.28" strokeWidth="1" />
+          <rect x="8" y="48" width="40" height="36" fill={surfacePaint(state, "B")} />
+          <path d="M8 82 H48 V106 H8 Z" fill={surfacePaint(state, "O")} />
+          <path d="M10 44 H46 V52 H10 Z" fill={surfacePaint(state, "L")} />
+          <rect x={mesialLeft ? 2 : 32} y="46" width="20" height="52" fill={surfacePaint(state, "M")} />
+          <rect x={mesialLeft ? 32 : 2} y="46" width="20" height="52" fill={surfacePaint(state, "D")} />
+          <path d={d} fill="none" stroke="#8a7358" strokeOpacity="0.3" strokeWidth="1" />
         </g>
       ) : null}
       {!gone && !split ? (
         <>
-          <path d={dentinPath(kind)} fill="var(--color-ink)" opacity="0.06" />
-          <path d={highlightPath(kind)} fill="var(--color-surface)" opacity="0.42" />
+          <path d={dentinPath(kind)} fill="#7a6248" opacity="0.07" />
+          <path d={highlightPath(kind)} fill="#fff" opacity="0.38" />
+          <path d={cervixPath(kind)} fill="#c9ae8c" opacity="0.22" />
         </>
       ) : null}
       {pulpitis && !gone ? (
         <g clipPath={`url(#${uid}-c)`}>
           <path d={pulpPath(kind)} fill={`url(#${uid}-pulp)`} />
-          <path d={pulpPath(kind)} fill="none" stroke="var(--color-tooth-pulpitis)" strokeWidth="0.7" opacity="0.8" />
+          <path d={pulpPath(kind)} fill="none" stroke="#9b3a3a" strokeWidth="0.7" opacity="0.85" />
         </g>
       ) : null}
       {filling && !gone && !split ? (
         <g clipPath={`url(#${uid}-c)`}>
           <path
-            d={kind === "molar" ? "M16 58 C18 54 26 54 28 58 C30 64 28 72 22 74 C16 72 14 64 16 58 Z" : "M18 56 C20 52 26 52 28 57 C29 64 26 72 22 73 C18 72 16 64 18 56 Z"}
+            d={kind === "molar" ? "M20 72 C22 66 32 66 35 73 C37 82 34 92 28 95 C22 92 18 82 20 72 Z" : "M22 70 C24 64 32 64 34 72 C35 82 32 92 28 94 C24 92 21 82 22 70 Z"}
             fill="var(--color-tooth-filling)"
             stroke="var(--color-ink)"
-            strokeOpacity="0.25"
-            strokeWidth="0.6"
+            strokeOpacity="0.22"
+            strokeWidth="0.55"
           />
         </g>
       ) : null}
       {caries && !gone && !split ? (
         <g clipPath={`url(#${uid}-c)`}>
-          <ellipse cx="26" cy="62" rx="3.6" ry="4.4" fill="var(--color-ink)" opacity="0.55" />
-          <ellipse cx="25.2" cy="61" rx="1.4" ry="1.6" fill="var(--color-tooth-caries)" opacity="0.7" />
+          <ellipse cx="33" cy="80" rx="4.2" ry="5" fill="#2a1c14" opacity="0.62" />
+          <ellipse cx="32.2" cy="78.6" rx="1.6" ry="1.8" fill="var(--color-tooth-caries)" opacity="0.8" />
         </g>
       ) : null}
       {veneer && !gone ? (
         <path
           d={d}
           fill="var(--color-tooth-veneer)"
-          opacity="0.9"
-          stroke="var(--color-ink)"
-          strokeOpacity="0.18"
-          strokeWidth="0.55"
-          transform="translate(0 1.6) scale(0.9 0.9)"
-          style={{ transformOrigin: "22px 56px" }}
+          opacity="0.88"
+          stroke="#8a7358"
+          strokeOpacity="0.16"
+          strokeWidth="0.5"
+          transform="translate(2.6 2.2) scale(0.9 0.9)"
         />
       ) : null}
       {bridge && !gone ? (
         <>
-          <path d="M1 50 H11" stroke="var(--color-tooth-bridge)" strokeWidth="3.4" strokeLinecap="round" />
-          <path d="M33 50 H43" stroke="var(--color-tooth-bridge)" strokeWidth="3.4" strokeLinecap="round" />
+          <path d="M1 64 H13" stroke="var(--color-tooth-bridge)" strokeWidth="3.6" strokeLinecap="round" />
+          <path d="M43 64 H55" stroke="var(--color-tooth-bridge)" strokeWidth="3.6" strokeLinecap="round" />
         </>
       ) : null}
       {extracted ? (
         <path
-          d="M13 40 L31 72 M31 40 L13 72"
+          d="M16 52 L40 94 M40 52 L16 94"
           fill="none"
           stroke="var(--color-danger)"
-          strokeWidth="1.7"
+          strokeWidth="1.8"
           strokeLinecap="round"
         />
       ) : null}
       {!gone && kind === "molar" ? (
         <>
-          <path d="M13 68 Q17 63.5 22 68 Q27 63.5 31 68" fill="none" stroke="var(--color-ink)" strokeOpacity="0.22" strokeWidth="0.85" />
-          <path d="M16 58 Q22 55 28 58" fill="none" stroke="var(--color-ink)" strokeOpacity="0.12" strokeWidth="0.6" />
+          <path d="M16 88 Q22 82 28 88 Q34 82 40 88" fill="none" stroke="#6a5640" strokeOpacity="0.22" strokeWidth="0.9" />
+          <path d="M19 74 Q28 70 37 74" fill="none" stroke="#6a5640" strokeOpacity="0.12" strokeWidth="0.65" />
         </>
       ) : null}
       {!gone && kind === "premolar" ? (
-        <path d="M16 68 Q22 64 28 68" fill="none" stroke="var(--color-ink)" strokeOpacity="0.2" strokeWidth="0.8" />
+        <path d="M20 88 Q28 82 36 88" fill="none" stroke="#6a5640" strokeOpacity="0.2" strokeWidth="0.85" />
       ) : null}
       {!gone && kind === "incisor" ? (
-        <path d="M15.5 74 Q18.5 76.4 22 77 Q25.5 76.4 28.5 74" fill="none" stroke="var(--color-ink)" strokeOpacity="0.18" strokeWidth="0.7" />
+        <>
+          <path d="M18 96 Q22 99.4 28 100 Q34 99.4 38 96" fill="none" stroke="#6a5640" strokeOpacity="0.18" strokeWidth="0.7" />
+          {n === 1 ? (
+            <path
+              d="M20 100 Q22.5 102 24.5 100 M26 100.4 Q28 102.4 30 100.4 M31.5 100 Q33.5 102 36 100"
+              fill="none"
+              stroke="#6a5640"
+              strokeOpacity="0.16"
+              strokeWidth="0.55"
+            />
+          ) : null}
+        </>
       ) : null}
       {!gone && kind === "canine" ? (
-        <path d="M22 78 L20.5 70 L23.5 70 Z" fill="var(--color-ink)" opacity="0.08" />
+        <path d="M28 104 L25.6 90 L30.4 90 Z" fill="#6a5640" opacity="0.1" />
+      ) : null}
+      {!gone && (kind === "incisor" || kind === "canine") ? (
+        <path d={incisalPath(kind)} fill="#c5d4e4" opacity="0.22" />
       ) : null}
     </g>
   );
 }
 
-function crownPath(kind: ReturnType<typeof toothKind>, n: number) {
+function crownPath(kind: Kind, n: number) {
   if (kind === "molar") {
-    return "M8 35 C5 40 5.2 52 7.4 62 C8.8 70 12 76 16 80 C18.8 83.5 21.2 81 22 78.5 C22.8 81 25.2 83.5 28 80 C32 76 35.2 70 36.6 62 C38.8 52 39 40 36 35 C30 32.4 14 32.4 8 35 Z";
+    if (n === 8) {
+      return "M14 46 C10 52 10.4 68 13.2 80 C15.2 90 19 98 24 102 C26.6 104.4 28.6 102 29.2 99 C30 102 32.4 104.6 35 102 C39.6 97 43 88 44.6 78 C47 66 46.6 52 42.4 46 C36 43.4 20 43.4 14 46 Z";
+    }
+    return "M10 46 C6.2 52 6.4 68 9.4 82 C11.4 92 16 100 21.4 104 C24.8 107 27.6 104.2 28.4 101 C29.2 104.2 32 107 35.4 104 C40.8 100 45.4 92 47.2 82 C50.2 68 50.4 52 46.4 46 C39 43 17.4 43 10 46 Z";
   }
   if (kind === "premolar") {
-    return "M11.2 35 C8.4 40 8.6 53 12 64 C14.2 71 17.6 77 22 80 C26.4 77 29.8 71 32 64 C35.4 53 35.6 40 32.8 35 C27 32.6 17 32.6 11.2 35 Z";
+    return "M14.4 46 C10.8 52 11 68 15.2 84 C17.8 94 22.4 101 28 104 C33.6 101 38.2 94 40.8 84 C45 68 45.2 52 41.6 46 C35 43.4 21 43.4 14.4 46 Z";
   }
   if (kind === "canine") {
-    return "M14 35 C11.2 42 12.2 56 18.4 72 C20.6 78 21.6 83 22 85 C22.4 83 23.4 78 25.6 72 C31.8 56 32.8 42 30 35 C25 32.6 19 32.6 14 35 Z";
+    return "M17.2 46 C13.6 54 14.8 72 22.2 92 C24.8 100 26.4 106 28 108 C29.6 106 31.2 100 33.8 92 C41.2 72 42.4 54 38.8 46 C33 43.4 23 43.4 17.2 46 Z";
   }
   if (n === 2) {
-    return "M14.6 35 C12 40 12.2 54 15 66 C16.8 73 19.8 78.5 22 80 C24.2 78.5 27.2 73 29 66 C31.8 54 32 40 29.4 35 C25 32.8 19 32.8 14.6 35 Z";
+    return "M18.2 46 C14.8 52 15 70 18.4 86 C20.8 96 24.6 102.5 28 104.2 C31.4 102.5 35.2 96 37.6 86 C41 70 41.2 52 37.8 46 C32.6 43.6 23.4 43.6 18.2 46 Z";
   }
-  return "M12.6 35 C9.8 40 10 54 13.2 67 C15.6 74.5 19.4 80 22 81.4 C24.6 80 28.4 74.5 30.8 67 C34 54 34.2 40 31.4 35 C26 32.6 18 32.6 12.6 35 Z";
+  return "M15.2 46 C11.4 52 11.6 70 15.6 88 C18.6 98 23.4 104.5 28 106.2 C32.6 104.5 37.4 98 40.4 88 C44.4 70 44.6 52 40.8 46 C34 43.2 22 43.2 15.2 46 Z";
 }
 
-function dentinPath(kind: ReturnType<typeof toothKind>) {
-  if (kind === "molar") return "M14 40 C12 48 13 60 16 70 C19 76 25 76 28 70 C31 60 32 48 30 40 C24 38 18 38 14 40 Z";
-  if (kind === "canine") return "M18 40 C16 50 18 64 22 76 C26 64 28 50 26 40 C24 38 20 38 18 40 Z";
-  return "M17 40 C15 50 16 62 19 72 C22 76 25 72 27 62 C28 50 27 40 25 40 C22 38 19 38 17 40 Z";
+function dentinPath(kind: Kind) {
+  if (kind === "molar") return "M18 52 C15.5 64 17 80 21 92 C24.5 100 32.5 100 36 92 C40 80 41.5 64 39 52 C32 50 24 50 18 52 Z";
+  if (kind === "canine") return "M22 52 C20 66 22 86 28 100 C34 86 36 66 34 52 C31 50 25 50 22 52 Z";
+  return "M21 52 C18.5 66 20 84 24 96 C28 101 32 96 35 84 C36.5 66 35 52 32 52 C28 50 24 50 21 52 Z";
 }
 
-function highlightPath(kind: ReturnType<typeof toothKind>) {
-  if (kind === "molar") return "M13 40 C14.5 37.5 20 36.5 22 40 C17.5 48 14.5 56 13.8 62 C12.6 54 12.2 46 13 40 Z";
-  if (kind === "canine") return "M17.2 40 C18.4 37.5 21.5 36.5 23 40 C20.4 52 18.8 64 18.2 72 C16.6 58 16.2 46 17.2 40 Z";
-  return "M16.4 39 C17.6 37 21.5 36.4 23 40 C20.2 50 18 60 17.4 66 C16 54 15.6 44 16.4 39 Z";
+function highlightPath(kind: Kind) {
+  if (kind === "molar") return "M16 52 C18 48.5 26 47.5 28 52 C22 64 18.5 76 17.4 84 C15.8 72 15.2 60 16 52 Z";
+  if (kind === "canine") return "M21.2 52 C23 48.5 27.4 47.8 29.2 52 C26 68 23.8 84 23 94 C21 76 20.4 60 21.2 52 Z";
+  return "M20 51 C22 48 27.5 47.4 29.4 52 C25.6 66 23 80 22.2 88 C20.4 72 19.6 58 20 51 Z";
 }
 
-function pulpPath(kind: ReturnType<typeof toothKind>) {
+function cervixPath(kind: Kind) {
+  if (kind === "molar") return "M11 46 C18 50 38 50 45 46 C42 50 14 50 11 46 Z";
+  if (kind === "canine") return "M18 46 C24 50 32 50 38 46 C34 50 22 50 18 46 Z";
+  return "M16 46 C22 50 34 50 40 46 C36 50 20 50 16 46 Z";
+}
+
+function pulpPath(kind: Kind) {
   if (kind === "molar") {
-    return "M17 42 C15.5 48 16 58 18.5 66 C20 70 24 70 25.5 66 C28 58 28.5 48 27 42 C24.5 39.5 19.5 39.5 17 42 Z";
+    return "M22 54 C20 62 21 76 24 86 C26 92 31 92 33 86 C36 76 37 62 35 54 C32 51 25 51 22 54 Z";
   }
   if (kind === "canine") {
-    return "M20 42 C18.6 50 19.2 64 21.6 74 C22.2 76 22.8 76 23.4 74 C25.8 64 26.2 50 24.8 42 C23.6 40 21.2 40 20 42 Z";
+    return "M25.2 54 C23.4 66 24.2 86 27.2 100 C27.8 102 28.4 102 29 100 C32 86 32.8 66 31 54 C29.6 51.5 26.6 51.5 25.2 54 Z";
   }
-  return "M19.2 42 C17.8 50 18.4 62 20.6 70 C21.4 73 22.6 73 23.4 70 C25.6 62 26.2 50 24.8 42 C23.4 40 20.6 40 19.2 42 Z";
+  return "M24.2 54 C22.4 66 23.2 84 26 94 C26.8 98 28.4 98 29.2 94 C32 84 32.8 66 31 54 C29.4 51.5 25.8 51.5 24.2 54 Z";
+}
+
+function incisalPath(kind: Kind) {
+  if (kind === "canine") {
+    return "M22 92 C24 100 26 106 28 108 C30 106 32 100 34 92 C31 96 25 96 22 92 Z";
+  }
+  return "M18 94 C22 102 24 105 28 106 C32 105 34 102 38 94 C34 99 22 99 18 94 Z";
 }

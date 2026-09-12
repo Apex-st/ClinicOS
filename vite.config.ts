@@ -14,6 +14,16 @@ import { isMigrationFile } from "./scripts/migration-plan.mjs";
 
 function apkDownloadPlugin(): Plugin {
   const files: Record<string, { rel: string; type: string; name: string }> = {
+    "/ClinicOS.apk": {
+      rel: "public/ClinicOS.apk",
+      type: "application/vnd.android.package-archive",
+      name: "ClinicOS.apk",
+    },
+    "/ClinicOS-2.25.apk": {
+      rel: "public/ClinicOS-2.25.apk",
+      type: "application/vnd.android.package-archive",
+      name: "ClinicOS-2.25.apk",
+    },
     "/Denta.apk": {
       rel: "public/Denta.apk",
       type: "application/vnd.android.package-archive",

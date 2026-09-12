@@ -37,7 +37,7 @@ export function CalendarOffer({
           <DialogHeader>
             <DialogTitle>Календарь телефона</DialogTitle>
             <DialogDescription>
-              Дента сама не пишет в календарь Google/Apple. Выберите, куда добавить приём{" "}
+              ClinicOS сама не пишет в календарь Google/Apple. Выберите, куда добавить приём{" "}
               {patient ? `«${fullName(patient)}»` : ""} в {appointment.start}.
             </DialogDescription>
           </DialogHeader>

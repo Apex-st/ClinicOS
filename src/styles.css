@@ -24,7 +24,7 @@
   --color-ok: #3d6b4f;
   --color-chair: #8a4a12;
 
-  --color-tooth-healthy: #f4efe4;
+  --color-tooth-healthy: #f6f0e4;
   --color-tooth-caries: #c45c4a;
   --color-tooth-filling: #5b6e7a;
   --color-tooth-pulpitis: #9b3a3a;
@@ -32,11 +32,11 @@
   --color-tooth-crown: #8a7a62;
   --color-tooth-veneer: #d9cfc0;
   --color-tooth-implant: #1f5c52;
-  --color-tooth-root: #5c5348;
+  --color-tooth-root: #c4a07a;
   --color-tooth-missing: #e7e1d6;
   --color-tooth-extracted: #d3ccc0;
   --color-tooth-bridge: #6b6358;
-  --color-tooth-gum: #e4b7b0;
+  --color-tooth-gum: #e4a39a;
 
   --radius-sm: 8px;
   --radius-md: 12px;

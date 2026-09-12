@@ -2,6 +2,9 @@ import { Smartphone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { APP_NAME, APP_VERSION } from "@/lib/version";
+
+const APK_NAME = `${APP_NAME}-${APP_VERSION}.apk`;
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -22,10 +25,10 @@ export function ApkDownload() {
     setBusy(true);
     toast.message("Готовлю файл для телефона…");
     try {
-      const res = await fetch("/Denta-2.24.apk", { cache: "no-store" });
+      const res = await fetch(`/${APK_NAME}`, { cache: "no-store" });
       if (!res.ok) throw new Error("file");
       const buf = await res.arrayBuffer();
-      triggerDownload(new Blob([buf], { type: "application/vnd.android.package-archive" }), "Denta-2.24.apk");
+      triggerDownload(new Blob([buf], { type: "application/vnd.android.package-archive" }), APK_NAME);
       toast.success("Смотрите папку «Загрузки» или значок загрузки в браузере сверху");
     } catch {
       try {
@@ -33,7 +36,7 @@ export function ApkDownload() {
         if (!res.ok) throw new Error("zip");
         const buf = await res.arrayBuffer();
         triggerDownload(new Blob([buf], { type: "application/zip" }), "Denta-android.zip");
-        toast.success("Скачан архив. Откройте его и установите Denta.apk");
+        toast.success("Скачан архив. Откройте его и установите ClinicOS.apk");
       } catch {
         toast.error("Предпросмотр блокирует скачивание. Напишите в чат — пришлю файл ещё раз.");
       }
@@ -47,7 +50,7 @@ export function ApkDownload() {
       <p className="text-[12px] uppercase tracking-wide opacity-80">Телефон</p>
       <h2 className="font-display text-2xl">Приложение на Android</h2>
       <p className="mt-1 max-w-prose text-sm opacity-90">
-        Нажмите кнопку — файл Denta.apk уйдёт в загрузки. Поставьте его на Android. Если окно
+        Нажмите кнопку — файл {APK_NAME} уйдёт в загрузки. Поставьте его на Android. Если окно
         предпросмотра молчит, файл лежит ниже в этом чате.
       </p>
       <div className="mt-4">

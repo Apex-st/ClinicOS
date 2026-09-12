@@ -356,7 +356,7 @@ export function AboutPanel() {
       <dl className="mt-3 grid gap-2 text-sm">
         <div>
           <dt className="text-[12px] text-muted">Название</dt>
-          <dd className="font-medium">Стоматологическая программа «Дента»</dd>
+          <dd className="font-medium">Стоматологическая программа ClinicOS</dd>
         </div>
         <div>
           <dt className="text-[12px] text-muted">Версия</dt>

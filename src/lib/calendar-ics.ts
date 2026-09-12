@@ -74,7 +74,7 @@ export function buildIcs(
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Denta//Cabinet//RU",
+    "PRODID:-//ClinicOS//Cabinet//RU",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     ...events,

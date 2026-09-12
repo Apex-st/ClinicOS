@@ -39,7 +39,7 @@ export async function saveNativeFile(
 
   const { Filesystem, Directory } = await import("@capacitor/filesystem");
   const data = await blobToBase64(blob);
-  const rel = `Denta/${filename}`;
+  const rel = `ClinicOS/${filename}`;
 
   try {
     if (typeof Filesystem.requestPermissions === "function") {

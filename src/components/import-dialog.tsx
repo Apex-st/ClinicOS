@@ -87,7 +87,7 @@ export function ImportDialog({
           <DialogTitle>Импорт данных</DialogTitle>
           <DialogDescription>
             Версия файла {file.version}
-            {file.appVersion ? ` · Дента ${file.appVersion}` : ""}. Ничего не записывается, пока не нажмёте
+            {file.appVersion ? ` · ClinicOS ${file.appVersion}` : ""}. Ничего не записывается, пока не нажмёте
             «Импортировать».
           </DialogDescription>
         </DialogHeader>

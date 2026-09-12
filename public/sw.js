@@ -1,4 +1,4 @@
-/* Дента: только уведомления. Кэш страниц не трогаем. */
+/* ClinicOS: только уведомления. Кэш страниц не трогаем. */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });

@@ -163,7 +163,7 @@ export function parseExportFile(raw: unknown): ParseResult {
   const legacy = !obj.kind && Array.isArray(obj.patients) && Array.isArray(obj.services);
   const modern = obj.kind === "denta-export" && obj.data && typeof obj.data === "object";
   if (!legacy && !modern) {
-    return { ok: false, error: "Это не файл экспорта Денты." };
+    return { ok: false, error: "Это не файл экспорта ClinicOS." };
   }
 
   const data = (modern ? obj.data : obj) as Partial<ClinicData>;

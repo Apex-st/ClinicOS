@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "ru.denta.clinic",
-  appName: "Denta",
+  appName: "ClinicOS",
   webDir: "dist-apk/client",
   android: {
     allowMixedContent: true,

@@ -1,6 +1,6 @@
 {
 	"appId": "ru.denta.clinic",
-	"appName": "Denta",
+	"appName": "ClinicOS",
 	"webDir": "dist-apk/client",
 	"android": {
 		"allowMixedContent": true

@@ -8,7 +8,7 @@ import { useClinic } from "@/lib/store";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Дента";
+import { APP_NAME } from "@/lib/version";
 
 const BOOT_GREETING = `(function(){try{function tg(){var h=new Date().getHours();if(h<12)return"Доброе утро";if(h<18)return"Добрый день";return"Добрый вечер"}function fn(d){return[d.lastName,d.firstName,d.middleName].filter(Boolean).join(" ")}var greeting=tg();try{var clinic=JSON.parse(localStorage.getItem("denta-clinic-v1")||"{}");var st=clinic.state||clinic;var settings=st.settings||{};var doctors=st.doctors||[];var session={};try{session=JSON.parse(sessionStorage.getItem("denta-session-v1")||"{}")}catch(e){}var sid=session.doctorId;function byId(id){if(!id)return;for(var i=0;i<doctors.length;i++)if(doctors[i].id===id)return doctors[i]}var chosen=byId(settings.welcomeDoctorId)||byId(sid)||doctors.filter(function(d){return d.active!==false})[0]||doctors[0];var fio=chosen?fn(chosen):(settings.doctorName||"").trim();var custom=(settings.welcomeText||"").trim();if(settings.welcomeMode==="custom"&&custom){if(custom.indexOf("{фио}")>=0)greeting=custom.split("{фио}").join(fio);else if(custom.indexOf("{имя}")>=0)greeting=custom.split("{имя}").join(fio);else greeting=fio?custom+", "+fio:custom}else greeting=fio?tg()+", "+fio:tg()}catch(e){}var el=document.getElementById("denta-boot-text");if(el)el.textContent=greeting}catch(e){}})();`;
 
@@ -20,7 +20,7 @@ function BootScreen() {
   return (
     <div id="denta-boot" aria-hidden="true">
       <p id="denta-boot-text" suppressHydrationWarning>
-        Дента
+        ClinicOS
       </p>
     </div>
   );

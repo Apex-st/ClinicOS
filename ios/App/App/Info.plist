@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ru</string>
 	<key>CFBundleDisplayName</key>
-	<string>Дента</string>
+	<string>ClinicOS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Дента</string>
+	<string>ClinicOS</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,22 +25,20 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Дента фотографирует зубы для фотоархива карточки пациента.</string>
+	<string>ClinicOS фотографирует зубы для фотоархива карточки пациента.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Дента подставляет телефон пациента из списка контактов iPhone.</string>
+	<string>ClinicOS подставляет телефон пациента из списка контактов iPhone.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Дента сохраняет снимки зубов в фотоархив.</string>
+	<string>ClinicOS сохраняет снимки зубов в фотоархив.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Дента берёт снимки из галереи в фотоархив карточки пациента.</string>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
+	<string>ClinicOS берёт снимки из галереи в фотоархив карточки пациента.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>arm64</string>
+		<string>armv7</string>
 	</array>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>

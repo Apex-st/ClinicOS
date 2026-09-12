@@ -134,7 +134,7 @@ export async function budgetPdfBlob(opts: {
     y -= size + 8;
   };
 
-  line(opts.settings.legalName || opts.settings.clinicName || "Дента", bold, 16, ACCENT);
+  line(opts.settings.legalName || opts.settings.clinicName || "ClinicOS", bold, 16, ACCENT);
   line("Финансовый отчёт · Бюджет", bold, 14);
   line(`${formatDate(opts.from)} — ${formatDate(opts.to)}`, regular, 10, MUTED);
   y -= 6;

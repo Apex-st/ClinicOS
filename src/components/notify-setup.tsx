@@ -38,7 +38,7 @@ export function NotifySetup() {
     if (p === "granted") {
       updateSettings({ remindersEnabled: true });
       toast.success("Уведомления включены — проверьте шторку");
-      await notify("Дента", "Так выглядит напоминание о приёме", "denta-test", "/schedule");
+      await notify("ClinicOS", "Так выглядит напоминание о приёме", "denta-test", "/schedule");
     } else if (p === "denied") {
       toast.error("Телефон запретил уведомления. Разрешите их в настройках системы.");
     } else {
@@ -47,7 +47,7 @@ export function NotifySetup() {
   }
 
   async function test() {
-    const ok = await notify("Дента", "Тестовое напоминание: приём через 15 минут", "denta-test", "/schedule");
+    const ok = await notify("ClinicOS", "Тестовое напоминание: приём через 15 минут", "denta-test", "/schedule");
     if (ok) toast.success("Смотрите шторку уведомлений");
     else toast.error("Сначала нажмите «Разрешить уведомления»");
   }
