@@ -10,7 +10,9 @@ export type AppointmentStatus =
   | "cancelled"
   | "no_show";
 
-export type ToothStatus =
+export type ToothStatus = string;
+
+export type BuiltinToothStatus =
   | "healthy"
   | "caries"
   | "filling"
@@ -23,6 +25,15 @@ export type ToothStatus =
   | "missing"
   | "extracted"
   | "bridge";
+
+export interface ToothStatusDef {
+  id: string;
+  label: string;
+  color: string;
+  usesSurfaces: boolean;
+  hidden?: boolean;
+  builtin?: boolean;
+}
 
 /** M медиальная, O жевательная/режущая, D дистальная, B вестибулярная, L оральная */
 export type ToothSurface = "M" | "O" | "D" | "B" | "L";
@@ -166,6 +177,7 @@ export interface Patient {
   tagIds?: string[];
   medicalFlags?: string[];
   medicalNote?: string;
+  dentitionMode?: "permanent" | "primary" | "mixed";
   discountTypeId: string;
   recallStatus: RecallStatus;
   createdAt: string;
@@ -279,6 +291,8 @@ export interface Settings {
   scheduleShowDayTime?: boolean;
   /** Вид приёма (осмотр, лечение…) на карточке записи в дне. */
   scheduleShowVisitKind?: boolean;
+  /** Справочник статусов зубной формулы. Пусто — встроенный список. */
+  toothStatuses?: ToothStatusDef[];
 }
 
 export interface PhotoMeta {

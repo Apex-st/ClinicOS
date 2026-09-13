@@ -380,21 +380,14 @@ function appointmentClass(status: Appointment["status"]) {
   return "bg-primary text-primary-fg";
 }
 
-function WeekName({ name, height }: { name: string; height: number }) {
-  const letters = (name.trim() || "Пациент").split("");
-  const n = Math.max(letters.length, 1);
-  const fs = Math.max(6, Math.min(11, Math.floor((height - 6) / n)));
+function WeekName({ name }: { name: string }) {
+  const text = name.trim() || "Пациент";
   return (
     <span
-      className="flex h-full w-full flex-col items-center justify-center overflow-hidden font-medium"
-      style={{ fontSize: fs, lineHeight: 1, padding: "3px 0" }}
+      className="block h-full w-full overflow-hidden px-1 py-0.5 text-left text-[11px] font-medium leading-tight text-ellipsis whitespace-nowrap"
       data-week-name
     >
-      {letters.map((ch, i) => (
-        <span key={i} className="block shrink-0">
-          {ch === " " ? "\u00a0" : ch}
-        </span>
-      ))}
+      {text}
     </span>
   );
 }
@@ -846,7 +839,7 @@ function WeekView({
                       boxShadow: doc ? `inset 3px 0 0 ${doc.color}` : undefined,
                     }}
                   >
-                    <WeekName name={p ? p.lastName : "Пациент"} height={height} />
+                    <WeekName name={p ? p.lastName : "Пациент"} />
                   </DraggableAppt>
                 );
               })}

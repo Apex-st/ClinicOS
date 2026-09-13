@@ -88,6 +88,7 @@ export function OrthoCardPanel({ patientId }: { patientId: string }) {
   const settings = useClinic((s) => s.settings);
   const charts = useClinic((s) => s.charts);
   const setTooth = useClinic((s) => s.setTooth);
+  const updatePatient = useClinic((s) => s.updatePatient);
   const updateOrtho = useClinic((s) => s.updateOrtho);
   const addPlan = useClinic((s) => s.addPlan);
   const raw = useClinic((s) => s.orthoCards?.[patientId]);
@@ -268,6 +269,8 @@ export function OrthoCardPanel({ patientId }: { patientId: string }) {
           onMarksChange={(fdi, next) => save({ teethMarks: { ...card.teethMarks, [String(fdi)]: next } })}
           hint="FDI · состояние и ортодонтические отметки"
           patientAge={ageYears(patient.birthDate)}
+          dentition={patient.dentitionMode}
+          onDentitionChange={(mode) => updatePatient(patientId, { dentitionMode: mode })}
         />
       </SpecSection>
 

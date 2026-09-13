@@ -2,7 +2,7 @@ import { addDays, format, subDays } from "date-fns";
 import { seedBudgetCategories } from "./budget";
 import { seedStockGroups, seedStockItems } from "./stock";
 import { DEFAULT_DIARY_TEMPLATES, emptyDiary, emptyFinding } from "./diary";
-import { ALL_CHART_FDI } from "./teeth";
+import { ALL_CHART_FDI, defaultToothStatuses } from "./teeth";
 import type {
   Appointment,
   Chart,
@@ -62,6 +62,7 @@ export function defaultSettings(): Settings {
     scheduleShowMiniMonth: true,
     scheduleShowDayTime: true,
     scheduleShowVisitKind: true,
+    toothStatuses: defaultToothStatuses(),
     workHours: {
       0: { start: "10:00", end: "14:00", off: true },
       1: { start: "09:00", end: "18:00", off: false },

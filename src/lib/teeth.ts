@@ -1,4 +1,4 @@
-import type { ToothState, ToothStatus, ToothSurface } from "./types";
+import type { ToothState, ToothStatus, ToothStatusDef, ToothSurface } from "./types";
 
 export const UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11] as const;
 export const UPPER_LEFT = [21, 22, 23, 24, 25, 26, 27, 28] as const;
@@ -35,6 +35,17 @@ export const DENTITION_MODE_OPTIONS: readonly (readonly [DentitionMode, string])
   ["primary", "Молочный"],
   ["mixed", "Смешанный"],
 ];
+
+/** Молочные в смешанном прикусе стоят под постоянными 5–1, слоты 8–6 пустые. */
+export function padPrimaryRow(row: readonly number[]): Array<number | null> {
+  return [null, null, null, ...row.slice(0, 5), ...row.slice(5), null, null, null];
+}
+
+export const MIXED_PRIMARY_UPPER = padPrimaryRow([...PRIMARY_UPPER_RIGHT, ...PRIMARY_UPPER_LEFT]);
+export const MIXED_PRIMARY_LOWER = padPrimaryRow([...PRIMARY_LOWER_RIGHT, ...PRIMARY_LOWER_LEFT]);
+
+export const PALMER_PERM = [8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8] as const;
+export const PALMER_PRIM = [5, 4, 3, 2, 1, 1, 2, 3, 4, 5] as const;
 
 export function isPrimary(fdi: number) {
   const q = Math.floor(fdi / 10);
@@ -78,25 +89,6 @@ export function toothTypeName(fdi: number): string {
   return "Третий моляр";
 }
 
-export const PERMANENT_TYPE_LEGEND: readonly { n: number; label: string; sample: number }[] = [
-  { n: 1, label: "Центральный резец (1)", sample: 11 },
-  { n: 2, label: "Боковой резец (2)", sample: 12 },
-  { n: 3, label: "Клык (3)", sample: 13 },
-  { n: 4, label: "Первый премоляр (4)", sample: 14 },
-  { n: 5, label: "Второй премоляр (5)", sample: 15 },
-  { n: 6, label: "Первый моляр (6)", sample: 16 },
-  { n: 7, label: "Второй моляр (7)", sample: 17 },
-  { n: 8, label: "Третий моляр (8)", sample: 18 },
-];
-
-export const PRIMARY_TYPE_LEGEND: readonly { n: number; label: string; sample: number }[] = [
-  { n: 1, label: "Центральный резец (1)", sample: 51 },
-  { n: 2, label: "Боковой резец (2)", sample: 52 },
-  { n: 3, label: "Клык (3)", sample: 53 },
-  { n: 4, label: "Первый моляр (4)", sample: 54 },
-  { n: 5, label: "Второй моляр (5)", sample: 55 },
-];
-
 export function suggestDentition(age: number | null | undefined): DentitionMode {
   if (age == null || !Number.isFinite(age)) return "permanent";
   if (age < 6) return "primary";
@@ -104,7 +96,12 @@ export function suggestDentition(age: number | null | undefined): DentitionMode 
   return "permanent";
 }
 
-export const TOOTH_STATUS_LABEL: Record<ToothStatus, string> = {
+export function parseDentition(value: unknown): DentitionMode | undefined {
+  if (value === "permanent" || value === "primary" || value === "mixed") return value;
+  return undefined;
+}
+
+export const TOOTH_STATUS_LABEL: Record<string, string> = {
   healthy: "Интактный",
   caries: "Кариес",
   filling: "Пломба",
@@ -134,6 +131,98 @@ export const TOOTH_STATUS_ORDER: ToothStatus[] = [
   "extracted",
 ];
 
+export const TOOTH_STATUS_COLOR: Record<string, string> = {
+  healthy: "#f6f0e4",
+  caries: "#c45c4a",
+  filling: "#5b6e7a",
+  pulpitis: "#9b3a3a",
+  periodontitis: "#b45309",
+  crown: "#8a7a62",
+  veneer: "#d9cfc0",
+  implant: "#1f5c52",
+  root: "#c4a07a",
+  missing: "#e7e1d6",
+  extracted: "#d3ccc0",
+  bridge: "#6b6358",
+};
+
+const SURFACE_STATUSES = new Set(["caries", "filling", "pulpitis", "periodontitis"]);
+
+export function defaultToothStatuses(): ToothStatusDef[] {
+  return TOOTH_STATUS_ORDER.map((id) => ({
+    id,
+    label: TOOTH_STATUS_LABEL[id],
+    color: TOOTH_STATUS_COLOR[id],
+    usesSurfaces: SURFACE_STATUSES.has(id),
+    builtin: true,
+  }));
+}
+
+export function resolveToothStatuses(saved?: ToothStatusDef[] | null): ToothStatusDef[] {
+  const defaults = defaultToothStatuses();
+  if (!saved?.length) return defaults;
+  const byId = new Map(saved.map((d) => [d.id, d]));
+  const out: ToothStatusDef[] = defaults.map((d) => {
+    const s = byId.get(d.id);
+    if (!s) return d;
+    return {
+      ...d,
+      label: (s.label ?? "").trim() || d.label,
+      color: s.color || d.color,
+      usesSurfaces: typeof s.usesSurfaces === "boolean" ? s.usesSurfaces : d.usesSurfaces,
+      hidden: Boolean(s.hidden),
+    };
+  });
+  for (const s of saved) {
+    if (!s?.id || defaults.some((d) => d.id === s.id)) continue;
+    const label = (s.label ?? "").trim();
+    if (!label) continue;
+    out.push({
+      id: s.id,
+      label,
+      color: s.color || "#6b6358",
+      usesSurfaces: Boolean(s.usesSurfaces),
+      builtin: false,
+      hidden: Boolean(s.hidden),
+    });
+  }
+  return out;
+}
+
+export function visibleToothStatuses(saved?: ToothStatusDef[] | null): ToothStatusDef[] {
+  return resolveToothStatuses(saved).filter((d) => !d.hidden);
+}
+
+export function toothStatusDef(id: string, saved?: ToothStatusDef[] | null): ToothStatusDef {
+  return (
+    resolveToothStatuses(saved).find((d) => d.id === id) ?? {
+      id,
+      label: TOOTH_STATUS_LABEL[id] || id,
+      color: TOOTH_STATUS_COLOR[id] || "#6b6358",
+      usesSurfaces: SURFACE_STATUSES.has(id),
+    }
+  );
+}
+
+export function toothStatusLabel(id: string, saved?: ToothStatusDef[] | null): string {
+  return toothStatusDef(id, saved).label;
+}
+
+export function toothStatusColor(id: string, saved?: ToothStatusDef[] | null): string {
+  return toothStatusDef(id, saved).color;
+}
+
+export function statusInk(color: string): string {
+  const raw = color.replace("#", "");
+  const hex = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const n = Number.parseInt(hex, 16);
+  if (!Number.isFinite(n)) return "#1c1915";
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 158 ? "#1c1915" : "#f7f3ec";
+}
+
 export type { ToothSurface };
 
 export const TOOTH_SURFACES: ToothSurface[] = ["B", "M", "O", "D", "L"];
@@ -148,18 +237,18 @@ export const TOOTH_SURFACE_LABEL: Record<ToothSurface, string> = {
 
 export function surfaceLabel(fdi: number, s: ToothSurface) {
   if (s === "O") return toothKind(fdi) === "incisor" || toothKind(fdi) === "canine" ? "Режущая" : "Жевательная";
-  if (s === "B") return isUpper(fdi) ? "Вестибулярная" : "Вестибулярная";
   if (s === "L") return isUpper(fdi) ? "Нёбная" : "Язычная";
   return TOOTH_SURFACE_LABEL[s];
 }
 
 /** Состояния, для которых указывают поверхность. Коронка, имплант, отсутствие — весь зуб. */
-export function statusUsesSurfaces(status: ToothStatus) {
-  return status === "caries" || status === "filling" || status === "pulpitis" || status === "periodontitis";
+export function statusUsesSurfaces(status: ToothStatus, saved?: ToothStatusDef[] | null) {
+  return toothStatusDef(status, saved).usesSurfaces;
 }
 
 export function normalizeTooth(t?: Partial<ToothState> | null): ToothState {
-  const status = t?.status && t.status in TOOTH_STATUS_LABEL ? t.status : "healthy";
+  const raw = typeof t?.status === "string" ? t.status.trim() : "";
+  const status = raw || "healthy";
   const surfaces = t?.surfaces && typeof t.surfaces === "object" ? { ...t.surfaces } : undefined;
   const clean = surfaces
     ? (Object.fromEntries(

@@ -214,13 +214,27 @@ function PatientPage() {
                 <p className="mt-3 text-sm text-muted">Нет ближайших записей</p>
               )}
             </section>
-            <Odontogram chart={chart ?? {}} onChange={onTooth} patientAge={age} />
+            <Odontogram
+              chart={chart ?? {}}
+              onChange={onTooth}
+              patientAge={age}
+              dentition={patient.dentitionMode}
+              onDentitionChange={(mode) => updatePatient(patient.id, { dentitionMode: mode })}
+            />
           </div>
           <VisitHistory visits={visits} services={services} onOpen={setViewVisit} />
         </>
       ) : null}
 
-      {tab === "chart" ? <Odontogram chart={chart ?? {}} onChange={onTooth} patientAge={age} /> : null}
+      {tab === "chart" ? (
+        <Odontogram
+          chart={chart ?? {}}
+          onChange={onTooth}
+          patientAge={age}
+          dentition={patient.dentitionMode}
+          onDentitionChange={(mode) => updatePatient(patient.id, { dentitionMode: mode })}
+        />
+      ) : null}
       {tab === "ortho" ? (
         <Suspense fallback={<p className="text-sm text-muted">Загрузка ортодонтической карты…</p>}>
           <OrthoCardPanel patientId={patient.id} />

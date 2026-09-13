@@ -66,6 +66,7 @@ export function ProsthoCardPanel({ patientId }: { patientId: string }) {
   const settings = useClinic((s) => s.settings);
   const charts = useClinic((s) => s.charts);
   const setTooth = useClinic((s) => s.setTooth);
+  const updatePatient = useClinic((s) => s.updatePatient);
   const updateProstho = useClinic((s) => s.updateProstho);
   const addPlan = useClinic((s) => s.addPlan);
   const updatePlan = useClinic((s) => s.updatePlan);
@@ -224,6 +225,8 @@ export function ProsthoCardPanel({ patientId }: { patientId: string }) {
           onMarksChange={(fdi, next) => save({ teethMarks: { ...card.teethMarks, [String(fdi)]: next } })}
           hint="FDI · состояние и ортопедические отметки"
           patientAge={ageYears(patient.birthDate)}
+          dentition={patient.dentitionMode}
+          onDentitionChange={(mode) => updatePatient(patientId, { dentitionMode: mode })}
         />
       </SpecSection>
 

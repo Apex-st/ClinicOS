@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { IosSwitch } from "@/components/ios-switch";
 import { DIAGNOSIS_CATEGORIES, diagnosisLabel } from "@/lib/icd";
 import { MESSAGE_VARS, TEMPLATE_KIND_LABEL, TEMPLATE_KIND_ORDER } from "@/lib/messages";
+import { defaultToothStatuses, resolveToothStatuses } from "@/lib/teeth";
 import { useClinic } from "@/lib/store";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_BUILD_DATE, APP_VERSION, APP_VERSION_LABEL } from "@/lib/version";
-import type { MessageTemplate } from "@/lib/types";
+import { uid } from "@/lib/utils";
+import type { MessageTemplate, ToothStatusDef } from "@/lib/types";
 
 export function MessageTemplatesPanel() {
   const templates = useClinic((s) => s.messageTemplates);
@@ -346,6 +349,142 @@ export function TagsPanel() {
         </Button>
       </div>
     </section>
+  );
+}
+
+export function ToothStatusesPanel() {
+  const saved = useClinic((s) => s.settings.toothStatuses);
+  const updateSettings = useClinic((s) => s.updateSettings);
+  const defs = resolveToothStatuses(saved);
+  const [name, setName] = useState("");
+  const [color, setColor] = useState("#5b6e7a");
+  const [surfaces, setSurfaces] = useState(true);
+
+  function write(next: ToothStatusDef[]) {
+    updateSettings({ toothStatuses: next });
+  }
+
+  function patch(id: string, partial: Partial<ToothStatusDef>) {
+    write(defs.map((d) => (d.id === id ? { ...d, ...partial } : d)));
+  }
+
+  return (
+    <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
+      <h2 className="font-display text-lg">Статусы зубов</h2>
+      <p className="mt-1 text-sm text-muted">
+        Цвета и названия на формуле в карточке. Можно переименовать, спрятать лишнее или добавить своё — герметик,
+        трещина, ретейнер.
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {defs.map((d) => (
+          <li key={d.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-bg px-3 py-2">
+            <StatusSwatch color={d.color} />
+            <input
+              type="color"
+              value={d.color}
+              aria-label={`Цвет: ${d.label}`}
+              onChange={(e) => patch(d.id, { color: e.target.value })}
+              className="size-8 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0"
+            />
+            <Input
+              value={d.label}
+              onChange={(e) => patch(d.id, { label: e.target.value })}
+              className="min-w-[8rem] flex-1"
+            />
+            <label className="flex items-center gap-2 text-[12px] text-muted">
+              <IosSwitch
+                on={d.usesSurfaces}
+                onChange={(on) => patch(d.id, { usesSurfaces: on })}
+                label="По поверхностям"
+              />
+              Поверхности
+            </label>
+            {d.id === "healthy" ? null : (
+              <label className="flex items-center gap-2 text-[12px] text-muted">
+                <IosSwitch
+                  on={!d.hidden}
+                  onChange={(on) => patch(d.id, { hidden: !on })}
+                  label={d.hidden ? "Показать" : "Скрыть"}
+                />
+                В списке
+              </label>
+            )}
+            {d.builtin ? null : (
+              <button type="button" className="text-[12px] text-danger" onClick={() => write(defs.filter((x) => x.id !== d.id))}>
+                Удалить
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 rounded-lg bg-bg p-3">
+        <p className="text-[13px] font-medium">Новый статус</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
+          <StatusSwatch color={color} />
+          <input
+            type="color"
+            value={color}
+            aria-label="Цвет нового статуса"
+            onChange={(e) => setColor(e.target.value)}
+            className="size-10 cursor-pointer rounded-md border-0 bg-transparent p-0"
+          />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Герметик" />
+          <label className="flex items-center gap-2 text-[12px] text-muted">
+            <IosSwitch on={surfaces} onChange={setSurfaces} label="По поверхностям" />
+            Поверхности
+          </label>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              if (!name.trim()) {
+                toast.message("Напишите название статуса");
+                return;
+              }
+              write([
+                ...defs,
+                {
+                  id: uid("ts"),
+                  label: name.trim(),
+                  color,
+                  usesSurfaces: surfaces,
+                  builtin: false,
+                },
+              ]);
+              setName("");
+              toast.success("Статус добавлен на формулу");
+            }}
+          >
+            Добавить статус
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              write(defaultToothStatuses());
+              toast.message("Список статусов сброшен");
+            }}
+          >
+            Сбросить список
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatusSwatch({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 40 40" className="size-8 shrink-0" aria-hidden>
+      <rect x="1.4" y="1.4" width="37.2" height="37.2" rx="2.4" fill="var(--color-surface)" stroke="var(--color-ink)" strokeOpacity="0.28" strokeWidth="1.1" />
+      <path d="M3 3 H37 L27.2 12.8 H12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
+      <path d="M3 3 V37 L12.8 27.2 V12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
+      <path d="M12.8 12.8 H27.2 V27.2 H12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
+      <path d="M37 3 V37 L27.2 27.2 V12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
+      <path d="M3 37 H37 L27.2 27.2 H12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
+    </svg>
   );
 }
 

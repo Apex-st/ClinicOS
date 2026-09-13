@@ -10,7 +10,7 @@ import { seedMessageTemplates, seedNotifyRules } from "./messages";
 import { seedTags } from "./patient-meta";
 import { emptyDiaryExtras } from "./stats";
 import { mergeOrtho, mergeProstho } from "./specialty";
-import { ALL_CHART_FDI, normalizeTooth } from "./teeth";
+import { ALL_CHART_FDI, normalizeTooth, resolveToothStatuses } from "./teeth";
 import type {
   Appointment,
   BudgetCategory,
@@ -260,6 +260,10 @@ function applyDiaryToChart(chart: Chart, diary: VisitDiary | undefined, diagnose
 function normalizePatient(p: Patient): Patient {
   const flags = [...(p.medicalFlags ?? [])];
   if ((p.allergies || "").trim() && !flags.includes("allergy")) flags.push("allergy");
+  const dentition =
+    p.dentitionMode === "permanent" || p.dentitionMode === "primary" || p.dentitionMode === "mixed"
+      ? p.dentitionMode
+      : undefined;
   return {
     ...p,
     cardNumber: p.cardNumber || "",
@@ -272,6 +276,7 @@ function normalizePatient(p: Patient): Patient {
     tagIds: p.tagIds ?? [],
     medicalFlags: flags,
     medicalNote: p.medicalNote || "",
+    dentitionMode: dentition,
     updatedAt: p.updatedAt || p.createdAt || "",
   };
 }
@@ -1060,7 +1065,7 @@ export const useClinic = create<ClinicState>()(
     }),
     {
       name: "denta-clinic-v1",
-      version: 16,
+      version: 17,
       skipHydration: true,
       partialize: (s) => ({
         patients: s.patients,
@@ -1175,6 +1180,7 @@ export const useClinic = create<ClinicState>()(
               openingBalance: Math.round(Number(raw.settings?.openingBalance) || 0),
               openingDate: raw.settings?.openingDate || "",
               customPayMethods: raw.settings?.customPayMethods ?? [],
+              toothStatuses: resolveToothStatuses(raw.settings?.toothStatuses),
               clinicName: brandName(raw.settings?.clinicName),
               legalName: brandName(raw.settings?.legalName),
             },
@@ -1203,6 +1209,7 @@ export const useClinic = create<ClinicState>()(
             openingBalance: Math.round(Number(p.settings?.openingBalance ?? current.settings.openingBalance) || 0),
             openingDate: p.settings?.openingDate ?? current.settings.openingDate ?? "",
             customPayMethods: p.settings?.customPayMethods ?? current.settings.customPayMethods ?? [],
+            toothStatuses: resolveToothStatuses(p.settings?.toothStatuses ?? current.settings.toothStatuses),
             clinicName: brandName(p.settings?.clinicName ?? current.settings.clinicName),
             legalName: brandName(p.settings?.legalName ?? current.settings.legalName),
           },
