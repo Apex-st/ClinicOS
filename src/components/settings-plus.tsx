@@ -8,6 +8,7 @@ import { IosSwitch } from "@/components/ios-switch";
 import { DIAGNOSIS_CATEGORIES, diagnosisLabel } from "@/lib/icd";
 import { MESSAGE_VARS, TEMPLATE_KIND_LABEL, TEMPLATE_KIND_ORDER } from "@/lib/messages";
 import { defaultToothStatuses, resolveToothStatuses } from "@/lib/teeth";
+import { PDF_DOCS, pdfOn, resetPdfDoc, setPdfHidden, type PdfDocId } from "@/lib/pdf-layout";
 import { useClinic } from "@/lib/store";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_BUILD_DATE, APP_VERSION, APP_VERSION_LABEL } from "@/lib/version";
@@ -485,6 +486,76 @@ function StatusSwatch({ color }: { color: string }) {
       <path d="M37 3 V37 L27.2 27.2 V12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
       <path d="M3 37 H37 L27.2 27.2 H12.8 Z" fill={color} stroke="var(--color-surface)" strokeWidth="1.1" />
     </svg>
+  );
+}
+
+export function PdfDocsPanel() {
+  const settings = useClinic((s) => s.settings);
+  const updateSettings = useClinic((s) => s.updateSettings);
+  const [open, setOpen] = useState<PdfDocId | null>("diary");
+
+  function toggle(doc: PdfDocId, field: string, on: boolean) {
+    updateSettings({ pdfLayout: setPdfHidden(settings.pdfLayout, doc, field, on) });
+  }
+
+  return (
+    <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]" data-pdf-docs>
+      <h2 className="font-display text-lg">Состав PDF</h2>
+      <p className="mt-1 text-sm text-muted">
+        Для каждого документа отметьте, какие данные попадут в файл. Выключенное поле не печатается и не
+        показывается в предпросмотре.
+      </p>
+      <div className="mt-4 flex flex-col gap-2">
+        {PDF_DOCS.map((doc) => {
+          const hidden = settings.pdfLayout?.[doc.id]?.length ?? 0;
+          const isOpen = open === doc.id;
+          return (
+            <div key={doc.id} className="overflow-hidden rounded-lg bg-bg">
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : doc.id)}
+                className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                data-pdf-doc={doc.id}
+              >
+                <span>
+                  <span className="block text-sm font-medium">{doc.title}</span>
+                  <span className="text-[12px] text-muted">
+                    {doc.hint}
+                    {hidden ? ` · скрыто ${hidden}` : " · все поля"}
+                  </span>
+                </span>
+                <span className="text-[12px] text-muted">{isOpen ? "свернуть" : "открыть"}</span>
+              </button>
+              {isOpen ? (
+                <ul className="flex flex-col gap-1 border-t border-line px-3 py-2">
+                  {doc.fields.map((f) => {
+                    const on = pdfOn(settings, doc.id, f.id);
+                    return (
+                      <li key={f.id} className="flex min-h-11 items-center justify-between gap-3">
+                        <span className="text-sm">{f.label}</span>
+                        <IosSwitch on={on} onChange={(next) => toggle(doc.id, f.id, next)} label={f.label} />
+                      </li>
+                    );
+                  })}
+                  <li className="pt-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        updateSettings({ pdfLayout: resetPdfDoc(settings.pdfLayout, doc.id) });
+                        toast.message("Все поля снова в документе");
+                      }}
+                    >
+                      Показать все поля
+                    </Button>
+                  </li>
+                </ul>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

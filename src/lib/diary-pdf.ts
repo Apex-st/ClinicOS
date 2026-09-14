@@ -2,6 +2,7 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { diarySections, VISIT_KIND_LABEL } from "./diary";
 import { formatDate, fullName, money } from "./format";
 import { embedPdfFonts, pdfBlobFromBytes } from "./pdf-fonts";
+import { DIARY_BODY_BY_TITLE, pdfOn } from "./pdf-layout";
 import type {
   DiaryExtras,
   Patient,
@@ -83,6 +84,7 @@ function esc(s: string) {
 }
 
 export function diaryDocumentHtml(input: DiaryPdfInput) {
+  const on = (field: string) => pdfOn(input.settings, "diary", field);
   const clinic = esc(input.settings.legalName || input.settings.clinicName);
   const extra = [
     input.settings.address && `Адрес: ${esc(input.settings.address)}`,
@@ -91,7 +93,10 @@ export function diaryDocumentHtml(input: DiaryPdfInput) {
   ]
     .filter(Boolean)
     .join(" · ");
-  const sections = diarySections(input.kind, input.diary, input.extras, input.stockItems);
+  const sections = diarySections(input.kind, input.diary, input.extras, input.stockItems).filter((s) => {
+    const field = DIARY_BODY_BY_TITLE[s.title];
+    return field ? on(field) : true;
+  });
   const blocks = sections
     .map(
       (s) =>
@@ -108,7 +113,7 @@ export function diaryDocumentHtml(input: DiaryPdfInput) {
     })
     .join("");
   const pay =
-    named.length || input.total
+    on("services") && (named.length || input.total)
       ? `<h2>Услуги</h2>
         ${
           named.length
@@ -120,6 +125,21 @@ export function diaryDocumentHtml(input: DiaryPdfInput) {
           <tr><td>Оплачено</td><td class="num">${money(input.paid ?? 0)}</td></tr>
         </table>`
       : "";
+
+  const metaCells: string[] = [];
+  if (on("patient")) metaCells.push(`<td>Пациент:</td><td><b>${esc(fullName(input.patient))}</b></td>`);
+  if (on("date")) metaCells.push(`<td>Дата:</td><td>${formatDate(input.date)}</td>`);
+  if (on("card")) metaCells.push(`<td>№ карты:</td><td>${esc(input.patient.cardNumber || "—")}</td>`);
+  if (on("doctor")) metaCells.push(`<td>Врач:</td><td>${esc(input.doctorName)}</td>`);
+  if (on("kind")) metaCells.push(`<td>Тип приёма:</td><td>${esc(VISIT_KIND_LABEL[input.kind])}</td>`);
+  if (on("birth"))
+    metaCells.push(
+      `<td>Дата рождения:</td><td>${input.patient.birthDate ? formatDate(input.patient.birthDate) : "—"}</td>`,
+    );
+  const metaRows: string[] = [];
+  for (let i = 0; i < metaCells.length; i += 2) {
+    metaRows.push(`<tr>${metaCells[i]}${metaCells[i + 1] ?? "<td></td><td></td>"}</tr>`);
+  }
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -146,19 +166,18 @@ export function diaryDocumentHtml(input: DiaryPdfInput) {
 </style>
 </head>
 <body>
-  <h1>СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»</h1>
-  <p class="sub">${extra || "Дневник посещения"}</p>
-  <table class="meta">
-    <tr><td>Пациент:</td><td><b>${esc(fullName(input.patient))}</b></td><td>Дата:</td><td>${formatDate(input.date)}</td></tr>
-    <tr><td>№ карты:</td><td>${esc(input.patient.cardNumber || "—")}</td><td>Врач:</td><td>${esc(input.doctorName)}</td></tr>
-    <tr><td>Тип приёма:</td><td>${esc(VISIT_KIND_LABEL[input.kind])}</td><td>Документ:</td><td>Дневник посещения</td></tr>
-  </table>
+  ${on("clinic") ? `<h1>СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»</h1><p class="sub">${extra || "Дневник посещения"}</p>` : "<h1>Дневник посещения</h1>"}
+  ${metaRows.length ? `<table class="meta">${metaRows.join("")}</table>` : ""}
   ${blocks}
   ${pay}
-  <div class="sign">
+  ${
+    on("signatures")
+      ? `<div class="sign">
     <div>Подпись врача<br/><span class="line"></span></div>
     <div>Подпись пациента<br/><span class="line"></span></div>
-  </div>
+  </div>`
+      : ""
+  }
   <p class="muted" style="margin-top:24px">Документ сформирован в программе кабинета.</p>
 </body>
 </html>`;
@@ -185,28 +204,31 @@ export async function buildDiaryPdfBlob(input: DiaryPdfInput) {
     }
   };
 
+  const on = (field: string) => pdfOn(input.settings, "diary", field);
   const clinic = input.settings.legalName || input.settings.clinicName;
-  drawText(page, `СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»`, M, y, bold, 13, ACCENT);
-  y -= 16;
-  const extra = [input.settings.address, input.settings.phone, input.settings.inn ? `ИНН ${input.settings.inn}` : ""]
-    .filter(Boolean)
-    .join(" · ");
-  if (extra) para(extra, regular, 9, MUTED);
-  y -= 4;
-  page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1, color: ACCENT });
-  y -= 22;
+  if (on("clinic")) {
+    drawText(page, `СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»`, M, y, bold, 13, ACCENT);
+    y -= 16;
+    const extra = [input.settings.address, input.settings.phone, input.settings.inn ? `ИНН ${input.settings.inn}` : ""]
+      .filter(Boolean)
+      .join(" · ");
+    if (extra) para(extra, regular, 9, MUTED);
+    y -= 4;
+    page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1, color: ACCENT });
+    y -= 22;
+  }
   drawText(page, "Дневник посещения", M, y, bold, 16);
   y -= 20;
 
-  const meta = [
-    `Пациент: ${fullName(input.patient)}`,
-    `Дата рождения: ${input.patient.birthDate ? formatDate(input.patient.birthDate) : "—"}`,
-    `№ карты: ${input.patient.cardNumber || "—"}`,
-    `Дата приёма: ${formatDate(input.date)}`,
-    `Врач: ${input.doctorName}`,
-    `Тип приёма: ${VISIT_KIND_LABEL[input.kind]}`,
-  ];
-  for (const line of meta) {
+  const meta: Array<[string, string]> = [];
+  if (on("patient")) meta.push(["patient", `Пациент: ${fullName(input.patient)}`]);
+  if (on("birth"))
+    meta.push(["birth", `Дата рождения: ${input.patient.birthDate ? formatDate(input.patient.birthDate) : "—"}`]);
+  if (on("card")) meta.push(["card", `№ карты: ${input.patient.cardNumber || "—"}`]);
+  if (on("date")) meta.push(["date", `Дата приёма: ${formatDate(input.date)}`]);
+  if (on("doctor")) meta.push(["doctor", `Врач: ${input.doctorName}`]);
+  if (on("kind")) meta.push(["kind", `Тип приёма: ${VISIT_KIND_LABEL[input.kind]}`]);
+  for (const [, line] of meta) {
     ensure(14);
     drawText(page, line, M, y, regular, 10);
     y -= 14;
@@ -214,6 +236,8 @@ export async function buildDiaryPdfBlob(input: DiaryPdfInput) {
   y -= 6;
 
   for (const s of diarySections(input.kind, input.diary, input.extras, input.stockItems)) {
+    const field = DIARY_BODY_BY_TITLE[s.title];
+    if (field && !on(field)) continue;
     ensure(28);
     drawText(page, s.title, M, y, bold, 11);
     y -= 14;
@@ -222,7 +246,7 @@ export async function buildDiaryPdfBlob(input: DiaryPdfInput) {
   }
 
   const named = (input.items ?? []).filter((i) => i.serviceId);
-  if (named.length) {
+  if (on("services") && named.length) {
     ensure(36);
     drawText(page, "Услуги", M, y, bold, 11);
     y -= 16;
@@ -234,20 +258,22 @@ export async function buildDiaryPdfBlob(input: DiaryPdfInput) {
     }
     y -= 4;
   }
-  if (input.total != null) {
+  if (on("services") && input.total != null) {
     ensure(28);
     const due = `К оплате: ${money(input.total)} · оплачено: ${money(input.paid ?? 0)}`;
     drawText(page, due, M, y, bold, 10);
     y -= 18;
   }
 
-  ensure(50);
-  y -= 8;
-  drawText(page, "Подпись врача", M, y, regular, 10);
-  drawText(page, "Подпись пациента", PAGE_W / 2 + 20, y, regular, 10);
-  y -= 18;
-  page.drawLine({ start: { x: M, y }, end: { x: M + 160, y }, thickness: 0.8, color: LINE });
-  page.drawLine({ start: { x: PAGE_W / 2 + 20, y }, end: { x: PAGE_W / 2 + 180, y }, thickness: 0.8, color: LINE });
+  if (on("signatures")) {
+    ensure(50);
+    y -= 8;
+    drawText(page, "Подпись врача", M, y, regular, 10);
+    drawText(page, "Подпись пациента", PAGE_W / 2 + 20, y, regular, 10);
+    y -= 18;
+    page.drawLine({ start: { x: M, y }, end: { x: M + 160, y }, thickness: 0.8, color: LINE });
+    page.drawLine({ start: { x: PAGE_W / 2 + 20, y }, end: { x: PAGE_W / 2 + 180, y }, thickness: 0.8, color: LINE });
+  }
 
   const bytes = await doc.save();
   const name = `diary-${input.patient.lastName || "pacient"}-${input.date}.pdf`.replace(/\s+/g, "_");

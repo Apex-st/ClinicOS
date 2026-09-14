@@ -293,6 +293,8 @@ export interface Settings {
   scheduleShowVisitKind?: boolean;
   /** Справочник статусов зубной формулы. Пусто — встроенный список. */
   toothStatuses?: ToothStatusDef[];
+  /** Скрытые поля PDF по типу документа. Нет ключа — все поля включены. */
+  pdfLayout?: Partial<Record<"diary" | "plan" | "ortho" | "prostho" | "budget", string[]>>;
 }
 
 export interface PhotoMeta {

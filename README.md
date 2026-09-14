@@ -35,8 +35,21 @@
 - **v2.23** — [Denta-2.23.apk](./Denta-2.23.apk), релиз [Дента 2.23](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.23)
 - **v2.24** — [Denta-2.24.apk](./Denta-2.24.apk), релиз [Дента 2.24](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.24)
 - **v2.25** — [ClinicOS-2.25.apk](./ClinicOS-2.25.apk), релиз [ClinicOS 2.25](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.25)
+- **v2.28** — [ClinicOS-2.28.apk](./ClinicOS-2.28.apk), релиз [ClinicOS 2.28](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.28)
+- **v2.29** — [ClinicOS-2.29.apk](./ClinicOS-2.29.apk), релиз [ClinicOS 2.29](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.29)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
+
+### Что нового в 2.29
+
+- **Неделя** — на телефоне фамилия на записи пишется в столбик по слогам (не по буквам). На компьютере — словами в строку.
+- **Настройки → Документы PDF** — для дневника, плана лечения, орто- и ортопедической карты и бюджета можно выбрать, какие поля попадут в файл.
+
+### Что нового в 2.28
+
+- **Зубная формула** — квадраты с пятью поверхностями вместо анатомических зубов. Переключатель Постоянный / Молочный / Смешанный: в смешанном молочные внутри, постоянные снаружи.
+- **Настройки → Карточка** — свои статусы зубов: название, цвет, поверхности, можно добавить новые.
+- **Неделя** — фамилия на записи пишется словами, слева направо.
 
 ### Что нового в 2.26
 

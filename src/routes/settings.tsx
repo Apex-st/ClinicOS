@@ -8,6 +8,8 @@ import {
   Building2,
   ChevronRight,
   Clock,
+  Contact,
+  FileText,
   HardDrive,
   Info,
   MessageSquare,
@@ -37,7 +39,9 @@ import {
   DiagnosesPanel,
   MessageTemplatesPanel,
   NotifyRulesPanel,
+  PdfDocsPanel,
   TagsPanel,
+  ToothStatusesPanel,
 } from "@/components/settings-plus";
 import { DiagnosisField } from "@/components/diagnosis-field";
 import { MaterialPicker } from "@/components/material-picker";
@@ -72,8 +76,10 @@ const DAYS: Array<{ n: number; label: string; short: string }> = [
 
 const SETTINGS_SECTIONS = [
   { id: "clinic", title: "Кабинет", hint: "Название, адрес, приветствие", icon: Building2 },
+  { id: "card", title: "Карточка", hint: "Формула, статусы зубов, группы", icon: Contact },
   { id: "staff", title: "Врачи", hint: "Профили, пароли, роли", icon: Users },
   { id: "diary", title: "Дневник", hint: "Шаблоны и кнопки приёма", icon: BookOpen },
+  { id: "pdf", title: "Документы PDF", hint: "Какие поля в каждом PDF", icon: FileText },
   { id: "diagnoses", title: "Диагнозы", hint: "Справочник МКБ-10", icon: Stethoscope },
   { id: "messages", title: "Сообщения", hint: "SMS, WhatsApp, почта", icon: MessageSquare },
   { id: "schedule", title: "Расписание", hint: "Часы работы, вид сетки, календарь", icon: Clock },
@@ -339,13 +345,19 @@ function SettingsPage() {
           </Field>
         </div>
       </section>
+        </>
+      ) : null}
 
-      <TagsPanel />
+      {section === "card" ? (
+        <>
+          <ToothStatusesPanel />
+          <TagsPanel />
         </>
       ) : null}
 
       {section === "staff" ? <StaffPanel /> : null}
       {section === "diary" ? <DiaryTemplatesPanel /> : null}
+      {section === "pdf" ? <PdfDocsPanel /> : null}
       {section === "diagnoses" ? <DiagnosesPanel /> : null}
       {section === "messages" ? <MessageTemplatesPanel /> : null}
 

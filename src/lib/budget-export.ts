@@ -8,6 +8,7 @@ import {
 } from "./budget";
 import { formatDate, fullName, money } from "./format";
 import { embedPdfFonts, pdfBlobFromBytes } from "./pdf-fonts";
+import { pdfOn } from "./pdf-layout";
 import type { BudgetCategory, BudgetVendor, Patient, Settings } from "./types";
 
 function xmlEsc(s: string) {
@@ -125,6 +126,8 @@ export async function budgetPdfBlob(opts: {
   let y = PAGE_H - M;
   const inner = PAGE_W - M * 2;
 
+  const on = (field: string) => pdfOn(opts.settings, "budget", field);
+
   const line = (text: string, font: PDFFont, size: number, color = INK) => {
     if (y < M + 28) {
       page = doc.addPage([PAGE_W, PAGE_H]);
@@ -134,31 +137,35 @@ export async function budgetPdfBlob(opts: {
     y -= size + 8;
   };
 
-  line(opts.settings.legalName || opts.settings.clinicName || "ClinicOS", bold, 16, ACCENT);
-  line("Финансовый отчёт · Бюджет", bold, 14);
-  line(`${formatDate(opts.from)} — ${formatDate(opts.to)}`, regular, 10, MUTED);
+  if (on("clinic")) line(opts.settings.legalName || opts.settings.clinicName || "ClinicOS", bold, 16, ACCENT);
+  if (on("title")) line("Финансовый отчёт · Бюджет", bold, 14);
+  if (on("period")) line(`${formatDate(opts.from)} — ${formatDate(opts.to)}`, regular, 10, MUTED);
   y -= 6;
-  line(`Доходы: ${money(opts.totals.income)}`, regular, 11);
-  line(`Расходы: ${money(opts.totals.expense)}`, regular, 11);
-  line(`Прибыль: ${money(opts.totals.profit)}`, bold, 12);
-  line(`Баланс: ${money(opts.totals.balance)} (начало ${money(opts.totals.opening)})`, regular, 11);
+  if (on("totals")) {
+    line(`Доходы: ${money(opts.totals.income)}`, regular, 11);
+    line(`Расходы: ${money(opts.totals.expense)}`, regular, 11);
+    line(`Прибыль: ${money(opts.totals.profit)}`, bold, 12);
+    line(`Баланс: ${money(opts.totals.balance)} (начало ${money(opts.totals.opening)})`, regular, 11);
+  }
   y -= 8;
   const share = categoryShare(opts.ops, opts.categories, "expense", opts.from, opts.to);
-  if (share.rows.length) {
+  if (on("categories") && share.rows.length) {
     line("Расходы по категориям", bold, 12);
     for (const row of share.rows.slice(0, 12)) {
       line(`${row.name}: ${money(row.amount)} · ${row.pct}%`, regular, 10, MUTED);
     }
     y -= 6;
   }
-  line("Операции", bold, 12);
-  for (const op of opts.ops.slice(0, 40)) {
-    const cat = opts.categories.find((c) => c.id === op.categoryId)?.name || "";
-    const sign = op.kind === "income" ? "+" : "−";
-    line(`${op.date}  ${sign}${money(op.amount)}  ${op.title}`, regular, 9);
-    line(`${cat} · ${payMethodLabel(op.method, opts.customPay)}`, regular, 8, MUTED);
+  if (on("operations")) {
+    line("Операции", bold, 12);
+    for (const op of opts.ops.slice(0, 40)) {
+      const cat = opts.categories.find((c) => c.id === op.categoryId)?.name || "";
+      const sign = op.kind === "income" ? "+" : "−";
+      line(`${op.date}  ${sign}${money(op.amount)}  ${op.title}`, regular, 9);
+      line(`${cat} · ${payMethodLabel(op.method, opts.customPay)}`, regular, 8, MUTED);
+    }
+    if (opts.ops.length > 40) line(`… ещё ${opts.ops.length - 40} операций`, regular, 9, MUTED);
   }
-  if (opts.ops.length > 40) line(`… ещё ${opts.ops.length - 40} операций`, regular, 9, MUTED);
   void inner;
   void LINE;
   const bytes = await doc.save();

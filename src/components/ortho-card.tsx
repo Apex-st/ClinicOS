@@ -116,7 +116,7 @@ export function OrthoCardPanel({ patientId }: { patientId: string }) {
       if (!String.fromCharCode(...head).startsWith("%PDF")) throw new Error("Собранный файл не PDF");
       setPdf({
         ...built,
-        html: specialtyHtml("Ортодонтическая карта", person, settings, doctorName, orthoSections(card)),
+        html: specialtyHtml("Ортодонтическая карта", person, settings, doctorName, orthoSections(card), "ortho"),
       });
       toast.success(`PDF готов, ${Math.max(1, Math.round(built.blob.size / 1024))} КБ`);
     } catch (err) {

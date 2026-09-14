@@ -1,7 +1,8 @@
 import { planTotals } from "./discounts";
 import { formatDate, fullName, money } from "./format";
 import { groupPlanItems, planDocumentText } from "./plan-groups";
-import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
+import { pdfOn } from "./pdf-layout";
+import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, UPPER_LEFT, UPPER_RIGHT, normalizeTooth, toothStatusColor, toothStatusLabel } from "./teeth";
 import type { Chart, DiscountType, Patient, Settings, ToothStatus, TreatmentPlan } from "./types";
 
 function esc(s: string) {
@@ -13,28 +14,15 @@ function esc(s: string) {
   });
 }
 
-const TOOTH_HEX: Record<ToothStatus, string> = {
-  healthy: "#f4efe4",
-  caries: "#c45c4a",
-  filling: "#5b6e7a",
-  pulpitis: "#9b3a3a",
-  periodontitis: "#b45309",
-  crown: "#8a7a62",
-  veneer: "#d9cfc0",
-  implant: "#1f5c52",
-  root: "#5c5348",
-  missing: "#e7e1d6",
-  extracted: "#d3ccc0",
-  bridge: "#6b6358",
-};
-
-function formulaHtml(chart: Chart) {
+function formulaHtml(chart: Chart, settings?: Settings) {
+  const saved = settings?.toothStatuses;
   const row = (fdis: readonly number[], numbers: "top" | "bottom") => {
     const cells = fdis
       .map((fdi) => {
         const st = normalizeTooth(chart[fdi]).status;
+        const hex = toothStatusColor(st, saved);
         const ink = st === "healthy" || st === "missing" || st === "extracted" || st === "veneer" ? "#1c1915" : "#fff";
-        const box = `<div class="box" style="background:${TOOTH_HEX[st]};color:${ink}">${st === "healthy" ? "" : TOOTH_STATUS_LABEL[st][0]}</div>`;
+        const box = `<div class="box" style="background:${hex};color:${ink}">${st === "healthy" ? "" : toothStatusLabel(st, saved)[0]}</div>`;
         const n = `<div class="n">${fdi}</div>`;
         return `<div class="tth">${numbers === "top" ? n + box : box + n}</div>`;
       })
@@ -48,7 +36,7 @@ function formulaHtml(chart: Chart) {
     if (st !== "healthy") used.add(st);
   }
   const legend = used.size
-    ? `<p class="muted">${[...used].map((s) => TOOTH_STATUS_LABEL[s]).join(" · ")}</p>`
+    ? `<p class="muted">${[...used].map((s) => toothStatusLabel(s, saved)).join(" · ")}</p>`
     : "";
   const primaryUsed = ALL_PRIMARY_FDI.some((fdi) => normalizeTooth(chart[fdi]).status !== "healthy");
   const primaryBlock = primaryUsed
@@ -64,6 +52,7 @@ export function planDocumentHtml(
   discounts: DiscountType[],
   chart?: Chart,
 ) {
+  const on = (field: string) => pdfOn(settings, "plan", field);
   const dtype = discounts.find((d) => d.id === plan.discountTypeId);
   const totals = planTotals(plan.items, plan.discount);
   const clinic = esc(settings.legalName || settings.clinicName);
@@ -81,6 +70,9 @@ export function planDocumentHtml(
   const blocks = groups
     .map((g) => {
       const named = g.items.filter((i) => i.serviceName.trim());
+      const showDx = on("diagnosis") && g.diagnosis.trim();
+      const showItems = on("groups") && named.length;
+      if (!showDx && !showItems) return "";
       const rows = named
         .map((it, i) => {
           const sum = Math.max(0, it.price * it.qty - it.discount);
@@ -97,9 +89,9 @@ export function planDocumentHtml(
       const title = g.toothFdi != null ? `Зуб ${g.toothFdi}` : "Общие услуги";
       return `<section class="tooth">
         <h2>${title}</h2>
-        ${g.diagnosis ? `<p><b>Диагноз:</b> ${esc(g.diagnosis)}</p>` : ""}
+        ${showDx ? `<p><b>Диагноз:</b> ${esc(g.diagnosis)}</p>` : ""}
         ${
-          named.length
+          showItems
             ? `<table class="grid">
           <thead><tr><th>№</th><th>Услуга</th><th>Кол-во</th><th>Цена</th><th>Скидка</th><th>Итог</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -110,6 +102,18 @@ export function planDocumentHtml(
       </section>`;
     })
     .join("");
+
+  const metaCells: string[] = [];
+  if (on("patient")) metaCells.push(`<td>Пациент:</td><td><b>${esc(fullName(patient))}</b></td>`);
+  if (on("date")) metaCells.push(`<td>Дата составления:</td><td>${formatDate(plan.date)}</td>`);
+  if (on("birth"))
+    metaCells.push(`<td>Дата рождения:</td><td>${patient.birthDate ? formatDate(patient.birthDate) : "—"}</td>`);
+  if (on("doctor")) metaCells.push(`<td>Врач:</td><td>${esc(plan.doctorName || settings.doctorName)}</td>`);
+  if (on("card")) metaCells.push(`<td>№ медицинской карты:</td><td>${esc(patient.cardNumber || patient.id)}</td>`);
+  const metaRows: string[] = [];
+  for (let i = 0; i < metaCells.length; i += 2) {
+    metaRows.push(`<tr>${metaCells[i]}${metaCells[i + 1] ?? "<td></td><td></td>"}</tr>`);
+  }
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -146,25 +150,28 @@ export function planDocumentHtml(
 </style>
 </head>
 <body>
-  <h1>СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»</h1>
-  <p class="sub">${extra || "Один кабинет"}</p>
-  <table class="meta">
-    <tr><td>Пациент:</td><td><b>${esc(fullName(patient))}</b></td><td>Дата составления:</td><td>${formatDate(plan.date)}</td></tr>
-    <tr><td>Дата рождения:</td><td>${patient.birthDate ? formatDate(patient.birthDate) : "—"}</td><td>Врач:</td><td>${esc(plan.doctorName || settings.doctorName)}</td></tr>
-    <tr><td>№ медицинской карты:</td><td>${esc(patient.cardNumber || patient.id)}</td><td>Документ:</td><td>${esc(plan.title)}</td></tr>
-  </table>
-  ${chart ? formulaHtml(chart) : ""}
+  ${on("clinic") ? `<h1>СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»</h1><p class="sub">${extra || "Один кабинет"}</p>` : `<h1>${esc(plan.title || "План лечения")}</h1>`}
+  ${metaRows.length ? `<table class="meta">${metaRows.join("")}</table>` : ""}
+  ${chart && on("odontogram") ? formulaHtml(chart, settings) : ""}
   ${blocks}
-  <table class="totals">
+  ${
+    on("totals")
+      ? `<table class="totals">
     <tr><td>Стоимость без скидки</td><td class="num">${money(totals.subtotal)}</td></tr>
     <tr><td>Скидки в строках</td><td class="num">${totals.lineDiscount ? "−" + money(totals.lineDiscount) : "—"}</td></tr>
     <tr><td>Скидка плана${dtype ? ` «${esc(dtype.name)}»` : ""}</td><td class="num">${totals.planDiscount ? "−" + money(totals.planDiscount) : "—"}</td></tr>
     <tr class="sum"><td>Итого к оплате</td><td class="num">${money(totals.total)}</td></tr>
-  </table>
-  <div class="sign">
+  </table>`
+      : ""
+  }
+  ${
+    on("signatures")
+      ? `<div class="sign">
     <div>Подпись врача<br/><span class="line"></span></div>
     <div>Подпись пациента<br/><span class="line"></span></div>
-  </div>
+  </div>`
+      : ""
+  }
   <p class="muted" style="margin-top:24px">Документ сформирован в программе кабинета. Не является публичной офертой.</p>
 </body>
 </html>`;

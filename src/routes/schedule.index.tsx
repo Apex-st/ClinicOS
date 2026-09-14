@@ -43,6 +43,7 @@ import {
 } from "@/lib/schedule";
 import { clampMiniDock, defaultMiniDock, loadMiniDock, saveMiniDock, MINI_SIZE } from "@/lib/mini-month-dock";
 import { useClinic } from "@/lib/store";
+import { splitSyllables } from "@/lib/syllables";
 import type { Appointment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useApptDrag } from "@/lib/use-appt-drag";
@@ -382,12 +383,27 @@ function appointmentClass(status: Appointment["status"]) {
 
 function WeekName({ name }: { name: string }) {
   const text = name.trim() || "Пациент";
+  const parts = splitSyllables(text);
+  const size =
+    parts.length >= 5 ? "text-[8px]" : parts.length >= 4 ? "text-[9px]" : "text-[10px]";
   return (
-    <span
-      className="block h-full w-full overflow-hidden px-1 py-0.5 text-left text-[11px] font-medium leading-tight text-ellipsis whitespace-nowrap"
-      data-week-name
-    >
-      {text}
+    <span className="block h-full min-h-0 w-full overflow-hidden" data-week-name>
+      <span className="hidden h-full w-full overflow-hidden px-1 py-0.5 text-left text-[11px] font-medium leading-tight text-ellipsis whitespace-nowrap md:block">
+        {text}
+      </span>
+      <span
+        className={cn(
+          "flex h-full min-h-0 w-full flex-col justify-evenly overflow-hidden px-0.5 py-px text-left font-medium leading-none md:hidden",
+          size,
+        )}
+        data-week-name-mobile
+      >
+        {parts.map((p, i) => (
+          <span key={`${p}-${i}`} className="block overflow-hidden text-ellipsis whitespace-nowrap">
+            {p}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

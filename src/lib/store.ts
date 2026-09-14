@@ -11,6 +11,7 @@ import { seedTags } from "./patient-meta";
 import { emptyDiaryExtras } from "./stats";
 import { mergeOrtho, mergeProstho } from "./specialty";
 import { ALL_CHART_FDI, normalizeTooth, resolveToothStatuses } from "./teeth";
+import { normalizePdfLayout } from "./pdf-layout";
 import type {
   Appointment,
   BudgetCategory,
@@ -1181,6 +1182,7 @@ export const useClinic = create<ClinicState>()(
               openingDate: raw.settings?.openingDate || "",
               customPayMethods: raw.settings?.customPayMethods ?? [],
               toothStatuses: resolveToothStatuses(raw.settings?.toothStatuses),
+              pdfLayout: normalizePdfLayout(raw.settings?.pdfLayout),
               clinicName: brandName(raw.settings?.clinicName),
               legalName: brandName(raw.settings?.legalName),
             },
@@ -1210,6 +1212,7 @@ export const useClinic = create<ClinicState>()(
             openingDate: p.settings?.openingDate ?? current.settings.openingDate ?? "",
             customPayMethods: p.settings?.customPayMethods ?? current.settings.customPayMethods ?? [],
             toothStatuses: resolveToothStatuses(p.settings?.toothStatuses ?? current.settings.toothStatuses),
+            pdfLayout: normalizePdfLayout(p.settings?.pdfLayout ?? current.settings.pdfLayout),
             clinicName: brandName(p.settings?.clinicName ?? current.settings.clinicName),
             legalName: brandName(p.settings?.legalName ?? current.settings.legalName),
           },

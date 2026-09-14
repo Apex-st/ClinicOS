@@ -63,6 +63,7 @@ export function defaultSettings(): Settings {
     scheduleShowDayTime: true,
     scheduleShowVisitKind: true,
     toothStatuses: defaultToothStatuses(),
+    pdfLayout: {},
     workHours: {
       0: { start: "10:00", end: "14:00", off: true },
       1: { start: "09:00", end: "18:00", off: false },

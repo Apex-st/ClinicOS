@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { groupLabel, money, sortedGroups } from "@/lib/format";
 import { useClinic } from "@/lib/store";
-import { TOOTH_STATUS_LABEL, TOOTH_STATUS_ORDER } from "@/lib/teeth";
+import { TOOTH_STATUS_LABEL, visibleToothStatuses } from "@/lib/teeth";
 import { cn } from "@/lib/utils";
 import type { Service, ServiceGroup, ToothStatus } from "@/lib/types";
 
@@ -576,6 +576,7 @@ function ServiceDialog({
   const [durationMin, setDurationMin] = useState(30);
   const [implies, setImplies] = useState("");
   const [active, setActive] = useState(true);
+  const toothStatuses = useClinic((s) => visibleToothStatuses(s.settings.toothStatuses));
 
   useEffect(() => {
     if (!open) return;
@@ -616,9 +617,9 @@ function ServiceDialog({
         <Field label="После услуги зуб становится">
           <Select value={implies} onChange={(e) => setImplies(e.target.value)}>
             <option value="">Не менять формулу</option>
-            {TOOTH_STATUS_ORDER.map((s) => (
-              <option key={s} value={s}>
-                {TOOTH_STATUS_LABEL[s]}
+            {toothStatuses.filter((s) => s.id !== "healthy").map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
               </option>
             ))}
           </Select>

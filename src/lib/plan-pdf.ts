@@ -3,7 +3,8 @@ import { planTotals } from "./discounts";
 import { formatDate, fullName, money } from "./format";
 import { embedPdfFonts, pdfBlobFromBytes } from "./pdf-fonts";
 import { groupPlanItems } from "./plan-groups";
-import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, TOOTH_STATUS_LABEL, UPPER_LEFT, UPPER_RIGHT, normalizeTooth } from "./teeth";
+import { pdfOn } from "./pdf-layout";
+import { ALL_PRIMARY_FDI, LOWER_LEFT, LOWER_RIGHT, PRIMARY_LOWER_LEFT, PRIMARY_LOWER_RIGHT, PRIMARY_UPPER_LEFT, PRIMARY_UPPER_RIGHT, UPPER_LEFT, UPPER_RIGHT, normalizeTooth, toothStatusColor, toothStatusLabel } from "./teeth";
 import type { Chart, DiscountType, Patient, Settings, ToothStatus, TreatmentPlan } from "./types";
 
 const PAGE_W = 595.28;
@@ -51,32 +52,32 @@ function drawText(page: PDFPage, text: string, x: number, y: number, font: PDFFo
   page.drawText(text, { x, y, size, font, color });
 }
 
-const TOOTH_FILL: Record<ToothStatus, ReturnType<typeof rgb>> = {
-  healthy: rgb(0.957, 0.937, 0.894),
-  caries: rgb(0.769, 0.361, 0.29),
-  filling: rgb(0.357, 0.431, 0.478),
-  pulpitis: rgb(0.608, 0.227, 0.227),
-  periodontitis: rgb(0.706, 0.325, 0.035),
-  crown: rgb(0.541, 0.478, 0.384),
-  veneer: rgb(0.851, 0.812, 0.753),
-  implant: rgb(0.122, 0.361, 0.322),
-  root: rgb(0.361, 0.325, 0.282),
-  missing: rgb(0.906, 0.882, 0.839),
-  extracted: rgb(0.827, 0.8, 0.753),
-  bridge: rgb(0.42, 0.388, 0.345),
-};
-
-function toothInk(status: ToothStatus) {
-  return status === "healthy" || status === "missing" || status === "extracted" || status === "veneer"
-    ? INK
-    : rgb(1, 1, 1);
+function hexRgb(hex: string) {
+  const raw = hex.replace("#", "");
+  const h = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const n = Number.parseInt(h, 16);
+  if (!Number.isFinite(n)) return rgb(0.95, 0.94, 0.9);
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
 
-function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont, bold: PDFFont) {
+function toothInk(status: ToothStatus, settings?: Settings) {
+  const hex = toothStatusColor(status, settings?.toothStatuses);
+  const raw = hex.replace("#", "");
+  const h = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw;
+  const n = Number.parseInt(h, 16);
+  if (!Number.isFinite(n)) return INK;
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 158 ? INK : rgb(1, 1, 1);
+}
+
+function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont, bold: PDFFont, settings?: Settings) {
   const inner = PAGE_W - M * 2;
   const gap = 2;
   const h = 16;
   let y = yTop;
+  const saved = settings?.toothStatuses;
 
   drawText(page, "Зубная формула", M, y, bold, 10);
   y -= 14;
@@ -95,13 +96,13 @@ function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont
         y: boxY,
         width: cell,
         height: h,
-        color: TOOTH_FILL[st],
+        color: hexRgb(toothStatusColor(st, saved)),
         borderColor: LINE,
         borderWidth: 0.4,
       });
       if (st !== "healthy") {
-        const label = TOOTH_STATUS_LABEL[st][0] ?? "";
-        drawText(page, label, x + 1.5, boxY + 4, font, 6, toothInk(st));
+        const label = toothStatusLabel(st, saved)[0] ?? "";
+        drawText(page, label, x + 1.5, boxY + 4, font, 6, toothInk(st, settings));
       }
     });
     return numbersAbove ? y - 11 - h - 4 : y - h - 12;
@@ -128,7 +129,7 @@ function drawOdontogram(page: PDFPage, chart: Chart, yTop: number, font: PDFFont
   }
   if (used.size) {
     y -= 4;
-    drawText(page, [...used].map((s) => TOOTH_STATUS_LABEL[s]).join(" · "), M, y, font, 7, MUTED);
+    drawText(page, [...used].map((s) => toothStatusLabel(s, saved)).join(" · "), M, y, font, 7, MUTED);
     y -= 12;
   } else {
     y -= 6;
@@ -153,6 +154,7 @@ export async function buildPlanPdfBlob(
   const totals = planTotals(plan.items, plan.discount);
   const groups = groupPlanItems(plan.items);
   const clinic = settings.legalName || settings.clinicName;
+  const on = (field: string) => pdfOn(settings, "plan", field);
 
   const ensure = (need: number) => {
     if (y - need < M + 28) {
@@ -169,25 +171,26 @@ export async function buildPlanPdfBlob(
     }
   };
 
-  drawText(page, `СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»`, M, y, bold, 13, ACCENT);
-  y -= 16;
-  const extra = [settings.address, settings.phone, settings.inn ? `ИНН ${settings.inn}` : "", settings.requisites]
-    .filter(Boolean)
-    .join(" · ");
-  if (extra) para(extra, regular, 9, MUTED);
-  y -= 6;
-  page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1, color: ACCENT });
-  y -= 22;
+  if (on("clinic")) {
+    drawText(page, `СТОМАТОЛОГИЧЕСКАЯ КЛИНИКА «${clinic}»`, M, y, bold, 13, ACCENT);
+    y -= 16;
+    const extra = [settings.address, settings.phone, settings.inn ? `ИНН ${settings.inn}` : "", settings.requisites]
+      .filter(Boolean)
+      .join(" · ");
+    if (extra) para(extra, regular, 9, MUTED);
+    y -= 6;
+    page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 1, color: ACCENT });
+    y -= 22;
+  }
 
   drawText(page, plan.title || "План лечения", M, y, bold, 16);
   y -= 20;
-  const meta = [
-    `Пациент: ${fullName(patient)}`,
-    `Дата рождения: ${patient.birthDate ? formatDate(patient.birthDate) : "—"}`,
-    `№ карты: ${patient.cardNumber || "—"}`,
-    `Дата составления: ${formatDate(plan.date)}`,
-    `Врач: ${plan.doctorName || settings.doctorName}`,
-  ];
+  const meta: string[] = [];
+  if (on("patient")) meta.push(`Пациент: ${fullName(patient)}`);
+  if (on("birth")) meta.push(`Дата рождения: ${patient.birthDate ? formatDate(patient.birthDate) : "—"}`);
+  if (on("card")) meta.push(`№ карты: ${patient.cardNumber || "—"}`);
+  if (on("date")) meta.push(`Дата составления: ${formatDate(plan.date)}`);
+  if (on("doctor")) meta.push(`Врач: ${plan.doctorName || settings.doctorName}`);
   for (const line of meta) {
     ensure(14);
     drawText(page, line, M, y, regular, 10);
@@ -195,27 +198,30 @@ export async function buildPlanPdfBlob(
   }
   y -= 8;
 
-  if (chart) {
+  if (chart && on("odontogram")) {
     ensure(120);
-    y = drawOdontogram(page, chart, y, regular, bold);
+    y = drawOdontogram(page, chart, y, regular, bold, settings);
     y -= 6;
   }
 
   for (const g of groups) {
+    const named = g.items.filter((i) => i.serviceName.trim());
+    const showDx = on("diagnosis") && g.diagnosis.trim();
+    const showItems = on("groups") && named.length;
+    if (!showDx && !showItems) continue;
     ensure(48);
     const heading = g.toothFdi != null ? `ЗУБ ${g.toothFdi}` : "ОБЩИЕ УСЛУГИ";
     drawText(page, heading, M, y, bold, 12, ACCENT);
     y -= 8;
     page.drawLine({ start: { x: M, y }, end: { x: PAGE_W - M, y }, thickness: 0.6, color: LINE });
     y -= 16;
-    if (g.diagnosis.trim()) {
+    if (showDx) {
       drawText(page, "Диагноз:", M, y, bold, 10);
       y -= 13;
       para(g.diagnosis, regular, 10);
       y -= 4;
     }
-    const named = g.items.filter((i) => i.serviceName.trim());
-    if (named.length) {
+    if (showItems) {
       ensure(28);
       drawText(page, g.toothFdi != null ? "Услуги:" : "Список:", M, y, bold, 10);
       y -= 14;
@@ -263,29 +269,33 @@ export async function buildPlanPdfBlob(
   }
 
   y -= 6;
-  ensure(80);
-  const totalsX = PAGE_W - M - 220;
-  const rows: Array<[string, string]> = [
-    ["Стоимость без скидки", money(totals.subtotal)],
-    ["Скидки в строках", totals.lineDiscount ? `−${money(totals.lineDiscount)}` : "—"],
-    [`Скидка плана${dtype ? ` «${dtype.name}»` : ""}`, totals.planDiscount ? `−${money(totals.planDiscount)}` : "—"],
-  ];
-  for (const [l, v] of rows) {
-    drawText(page, l, totalsX, y, regular, 10);
-    drawText(page, v, PAGE_W - M - regular.widthOfTextAtSize(v, 10), y, regular, 10);
-    y -= 14;
+  if (on("totals")) {
+    ensure(80);
+    const totalsX = PAGE_W - M - 220;
+    const rows: Array<[string, string]> = [
+      ["Стоимость без скидки", money(totals.subtotal)],
+      ["Скидки в строках", totals.lineDiscount ? `−${money(totals.lineDiscount)}` : "—"],
+      [`Скидка плана${dtype ? ` «${dtype.name}»` : ""}`, totals.planDiscount ? `−${money(totals.planDiscount)}` : "—"],
+    ];
+    for (const [l, v] of rows) {
+      drawText(page, l, totalsX, y, regular, 10);
+      drawText(page, v, PAGE_W - M - regular.widthOfTextAtSize(v, 10), y, regular, 10);
+      y -= 14;
+    }
+    drawText(page, "ИТОГО", totalsX, y, bold, 12);
+    drawText(page, money(totals.total), PAGE_W - M - bold.widthOfTextAtSize(money(totals.total), 12), y, bold, 12, ACCENT);
+    y -= 24;
   }
-  drawText(page, "ИТОГО", totalsX, y, bold, 12);
-  drawText(page, money(totals.total), PAGE_W - M - bold.widthOfTextAtSize(money(totals.total), 12), y, bold, 12, ACCENT);
-  y -= 24;
 
-  ensure(50);
-  y -= 10;
-  drawText(page, "Подпись врача", M, y, regular, 10);
-  drawText(page, "Подпись пациента", PAGE_W / 2 + 20, y, regular, 10);
-  y -= 18;
-  page.drawLine({ start: { x: M, y }, end: { x: M + 160, y }, thickness: 0.8, color: INK });
-  page.drawLine({ start: { x: PAGE_W / 2 + 20, y }, end: { x: PAGE_W / 2 + 180, y }, thickness: 0.8, color: INK });
+  if (on("signatures")) {
+    ensure(50);
+    y -= 10;
+    drawText(page, "Подпись врача", M, y, regular, 10);
+    drawText(page, "Подпись пациента", PAGE_W / 2 + 20, y, regular, 10);
+    y -= 18;
+    page.drawLine({ start: { x: M, y }, end: { x: M + 160, y }, thickness: 0.8, color: INK });
+    page.drawLine({ start: { x: PAGE_W / 2 + 20, y }, end: { x: PAGE_W / 2 + 180, y }, thickness: 0.8, color: INK });
+  }
 
   const bytes = await doc.save();
   const name = `plan-${patient.lastName || "pacient"}-${plan.date}.pdf`.replace(/\s+/g, "_");

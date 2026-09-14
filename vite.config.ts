@@ -19,6 +19,16 @@ function apkDownloadPlugin(): Plugin {
       type: "application/vnd.android.package-archive",
       name: "ClinicOS.apk",
     },
+    "/ClinicOS-2.29.apk": {
+      rel: "public/ClinicOS-2.29.apk",
+      type: "application/vnd.android.package-archive",
+      name: "ClinicOS-2.29.apk",
+    },
+    "/ClinicOS-2.28.apk": {
+      rel: "public/ClinicOS-2.28.apk",
+      type: "application/vnd.android.package-archive",
+      name: "ClinicOS-2.28.apk",
+    },
     "/ClinicOS-2.25.apk": {
       rel: "public/ClinicOS-2.25.apk",
       type: "application/vnd.android.package-archive",
