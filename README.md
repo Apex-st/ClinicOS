@@ -38,6 +38,7 @@
 - **v2.28** — [ClinicOS-2.28.apk](./ClinicOS-2.28.apk), релиз [ClinicOS 2.28](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.28)
 - **v2.29** — [ClinicOS-2.29.apk](./ClinicOS-2.29.apk), релиз [ClinicOS 2.29](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.29)
 - **v2.30** — [ClinicOS-2.30.apk](./ClinicOS-2.30.apk), релиз [ClinicOS 2.30](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.30)
+- **v2.31** — [ClinicOS-2.31.apk](./ClinicOS-2.31.apk), релиз [ClinicOS 2.31](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.31)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
 
