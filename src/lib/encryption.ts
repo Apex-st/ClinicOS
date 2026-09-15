@@ -11,11 +11,13 @@ import {
 import { clearDek, getDek, setDek, setPendingRecoveryKey } from "./crypto-session";
 import { encryptAllPlainPhotos } from "./photos-idb";
 import { waitForPersistWrites } from "./secure-storage";
+import { verifyPassword } from "./passwords";
 import { useClinic } from "./store";
 import {
   emptyVault,
   findVaultWrap,
   hasVault,
+  isPersistEncrypted,
   makeDoctorWrap,
   readVault,
   upsertVaultWrap,
@@ -98,6 +100,47 @@ export async function wrapDoctorPassword(doctorId: string, login: string, passwo
   if (!dek || !hasVault()) return;
   const wrap = await makeDoctorWrap(dek, doctorId, login, password);
   upsertVaultWrap(wrap);
+}
+
+export async function signInWithPassword(
+  loginName: string,
+  password: string,
+): Promise<{ doctorId: string } | { fail: UnlockFail }> {
+  const name = loginName.trim();
+  if (hasVault()) return unlockWithPassword(name, password);
+  if (!cryptoAvailable()) return { fail: "no-crypto" };
+  const q = name.toLowerCase();
+  const doc = useClinic.getState().doctors.find((d) => d.login.trim().toLowerCase() === q);
+  if (!doc?.passwordHash) return { fail: "bad" };
+  const ok = await verifyPassword(password, doc.passwordSalt, doc.passwordHash);
+  if (!ok) return { fail: "bad" };
+  try {
+    await migrateToEncryptionIfNeeded({ doctorId: doc.id, login: doc.login, password });
+  } catch {
+    return { fail: "no-crypto" };
+  }
+  return { doctorId: doc.id };
+}
+
+export function reactivateDoctor(id: string) {
+  if (!id) return;
+  const doc = useClinic.getState().doctors.find((d) => d.id === id);
+  if (doc && doc.active === false) {
+    useClinic.getState().updateDoctor(id, { active: true });
+  }
+}
+
+export async function finishSignIn(doctorId: string): Promise<boolean> {
+  if (hasVault() || isPersistEncrypted()) {
+    try {
+      await useClinic.persist.rehydrate();
+    } catch {
+      return false;
+    }
+    if (!useClinic.persist.hasHydrated?.()) return false;
+  }
+  reactivateDoctor(doctorId);
+  return true;
 }
 
 export async function unlockWithPassword(

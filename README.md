@@ -39,8 +39,14 @@
 - **v2.29** — [ClinicOS-2.29.apk](./ClinicOS-2.29.apk), релиз [ClinicOS 2.29](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.29)
 - **v2.30** — [ClinicOS-2.30.apk](./ClinicOS-2.30.apk), релиз [ClinicOS 2.30](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.30)
 - **v2.31** — [ClinicOS-2.31.apk](./ClinicOS-2.31.apk), релиз [ClinicOS 2.31](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.31)
+- **v2.32** — [ClinicOS-2.32.apk](./ClinicOS-2.32.apk), релиз [ClinicOS 2.32](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.32)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
+
+### Что нового в 2.32
+
+- **Врачи** — «Выкл.» больше не сбрасывает профиль и не открывает первый вход. Последнего включённого врача выключить нельзя.
+- **Первый вход** — можно создать новый профиль или войти в уже существующий.
 
 ### Что нового в 2.31
 

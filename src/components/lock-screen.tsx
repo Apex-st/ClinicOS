@@ -4,15 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { unlockWithPassword, unlockWithRecovery, migrateToEncryptionIfNeeded } from "@/lib/encryption";
+import { unlockWithRecovery, signInWithPassword, finishSignIn } from "@/lib/encryption";
 import { maybePersistAutoUnlock } from "@/lib/crypto-session";
 import { hasVault, readVault } from "@/lib/vault";
-import { verifyPassword } from "@/lib/passwords";
 import { useSession } from "@/lib/session";
 import { useClinic } from "@/lib/store";
 
 export function LockScreen() {
-  const doctors = useClinic((s) => s.doctors);
   const settings = useClinic((s) => s.settings);
   const login = useSession((s) => s.login);
   const vault = readVault();
@@ -23,14 +21,8 @@ export function LockScreen() {
   const [recoveryKey, setRecoveryKey] = useState("");
 
   async function afterUnlock(doctorId: string) {
-    try {
-      await useClinic.persist.rehydrate();
-    } catch {
-      toast.error("Не удалось открыть зашифрованные данные");
-      useSession.getState().logout();
-      return;
-    }
-    if (!useClinic.persist.hasHydrated?.()) {
+    const ok = await finishSignIn(doctorId);
+    if (!ok) {
       toast.error("Не удалось открыть зашифрованные данные");
       useSession.getState().logout();
       return;
@@ -43,45 +35,20 @@ export function LockScreen() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (hasVault()) {
-        const result = await unlockWithPassword(loginName, password);
-        if ("fail" in result) {
-          if (result.fail === "no-wrap") {
-            toast.error("Этот профиль ещё не привязан к шифрованию. Попросите главного врача задать пароль в настройках.");
-            return;
-          }
-          if (result.fail === "no-crypto") {
-            toast.error("Шифрование недоступно в этом браузере");
-            return;
-          }
-          toast.error("Неверный логин или пароль");
+      const result = await signInWithPassword(loginName, password);
+      if ("fail" in result) {
+        if (result.fail === "no-wrap") {
+          toast.error("Этот профиль ещё не привязан к шифрованию. Попросите главного врача задать пароль в настройках.");
           return;
         }
-        await afterUnlock(result.doctorId);
-        return;
-      }
-
-      const doc = doctors.find((d) => d.active && d.login.toLowerCase() === loginName.trim().toLowerCase());
-      if (!doc || !doc.passwordHash) {
+        if (result.fail === "no-crypto") {
+          toast.error("Шифрование недоступно в этом браузере");
+          return;
+        }
         toast.error("Неверный логин или пароль");
         return;
       }
-      const ok = await verifyPassword(password, doc.passwordSalt, doc.passwordHash);
-      if (!ok) {
-        toast.error("Неверный логин или пароль");
-        return;
-      }
-      try {
-        await migrateToEncryptionIfNeeded({
-          doctorId: doc.id,
-          login: doc.login,
-          password,
-        });
-      } catch {
-        toast.error("Не удалось включить шифрование");
-        return;
-      }
-      login(doc.id);
+      await afterUnlock(result.doctorId);
     } finally {
       setBusy(false);
     }

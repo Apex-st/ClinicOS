@@ -3,10 +3,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { enableEncryption } from "@/lib/encryption";
+import { enableEncryption, finishSignIn, signInWithPassword } from "@/lib/encryption";
+import { maybePersistAutoUnlock } from "@/lib/crypto-session";
 import { hashPassword, randomSalt } from "@/lib/passwords";
 import { useSession } from "@/lib/session";
-import { DOCTOR_ROLES } from "@/lib/staff";
+import { DOCTOR_ROLES, hasPasswordAccount } from "@/lib/staff";
 import { shortName } from "@/lib/format";
 import { useClinic } from "@/lib/store";
 import type { DoctorRole } from "@/lib/types";
@@ -18,6 +19,8 @@ export function FirstRunSetup() {
   const updateDoctor = useClinic((s) => s.updateDoctor);
   const updateSettings = useClinic((s) => s.updateSettings);
   const login = useSession((s) => s.login);
+  const canSignIn = hasPasswordAccount(doctors);
+  const [mode, setMode] = useState<"create" | "login">(canSignIn ? "login" : "create");
   const [clinicName, setClinicName] = useState(settings.clinicName || "ClinicOS");
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -28,6 +31,39 @@ export function FirstRunSetup() {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [busy, setBusy] = useState(false);
+
+  async function submitLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!loginName.trim() || !password) {
+      toast.error("Укажите логин и пароль");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await signInWithPassword(loginName, password);
+      if ("fail" in result) {
+        if (result.fail === "no-wrap") {
+          toast.error("Этот профиль ещё не привязан к шифрованию. Создайте профиль заново или попросите задать пароль.");
+          return;
+        }
+        if (result.fail === "no-crypto") {
+          toast.error("Шифрование недоступно в этом браузере");
+          return;
+        }
+        toast.error("Неверный логин или пароль");
+        return;
+      }
+      const ok = await finishSignIn(result.doctorId);
+      if (!ok) {
+        toast.error("Не удалось открыть кабинет");
+        return;
+      }
+      login(result.doctorId);
+      maybePersistAutoUnlock();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,6 +131,44 @@ export function FirstRunSetup() {
 
   return (
     <div className="grid min-h-dvh place-items-center bg-bg px-4 py-8">
+      {mode === "login" ? (
+        <form
+          onSubmit={(e) => void submitLogin(e)}
+          className="w-full max-w-md rounded-xl bg-surface p-6 shadow-[var(--shadow-lift)]"
+        >
+          <p className="font-display text-3xl text-ink">ClinicOS</p>
+          <h1 className="mt-2 font-display text-xl">Вход в кабинет</h1>
+          <p className="mt-1 text-sm text-muted">
+            Войдите в уже созданный профиль. Карточки не сбрасываются.
+          </p>
+          <div className="mt-5 flex flex-col gap-3">
+            <Field label="Логин">
+              <Input autoComplete="username" value={loginName} onChange={(e) => setLoginName(e.target.value)} autoFocus />
+            </Field>
+            <Field label="Пароль">
+              <Input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            <Button type="submit" disabled={busy || !loginName || !password}>
+              {busy ? "Проверка…" : "Войти"}
+            </Button>
+            <button
+              type="button"
+              className="text-center text-sm text-muted hover:text-ink"
+              onClick={() => {
+                setMode("create");
+                setPassword("");
+              }}
+            >
+              Создать новый профиль
+            </button>
+          </div>
+        </form>
+      ) : (
       <form
         onSubmit={(e) => void submit(e)}
         className="w-full max-w-md rounded-xl bg-surface p-6 shadow-[var(--shadow-lift)]"
@@ -155,8 +229,20 @@ export function FirstRunSetup() {
           <Button type="submit" disabled={busy}>
             {busy ? "Сохраняю…" : "Создать профиль и войти"}
           </Button>
+          <button
+            type="button"
+            className="text-center text-sm text-muted hover:text-ink"
+            onClick={() => {
+              setMode("login");
+              setPassword("");
+              setPassword2("");
+            }}
+          >
+            У меня уже есть аккаунт
+          </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

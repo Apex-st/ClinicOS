@@ -26,7 +26,11 @@ export function canManageStaff(opts: { requireLogin: boolean; actor?: Doctor | n
   return isManagerRole(opts.actor.role);
 }
 
-/** Первый запуск: ещё нет ни одного врача с паролем. */
+/** Первый запуск: ещё нет ни одного врача с паролем — даже выключенного. */
+export function hasPasswordAccount(doctors: Doctor[] | undefined): boolean {
+  return (doctors ?? []).some((d) => Boolean(d.passwordHash));
+}
+
 export function needsFirstRun(doctors: Doctor[] | undefined): boolean {
-  return !(doctors ?? []).some((d) => d.active !== false && Boolean(d.passwordHash));
+  return !hasPasswordAccount(doctors);
 }

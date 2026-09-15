@@ -183,6 +183,16 @@ export function StaffPanel() {
             others={doctors}
             onUpdate={(patch) => updateDoctor(d.id, patch)}
             onPassword={(pwd) => void setPass(d.id, pwd)}
+            onToggleActive={() => {
+              if (d.active) {
+                const remaining = doctors.filter((x) => x.id !== d.id && x.active !== false);
+                if (remaining.length === 0) {
+                  toast.error("Это единственный включённый профиль — его нельзя выключить");
+                  return;
+                }
+              }
+              updateDoctor(d.id, { active: !d.active });
+            }}
             onDelete={() => setAskId(d.id)}
           />
         ))}
@@ -287,6 +297,7 @@ function DoctorRow({
   others,
   onUpdate,
   onPassword,
+  onToggleActive,
   onDelete,
 }: {
   d: Doctor;
@@ -296,6 +307,7 @@ function DoctorRow({
   others: Doctor[];
   onUpdate: (patch: Partial<Doctor>) => void;
   onPassword: (password: string) => void;
+  onToggleActive: () => void;
   onDelete: () => void;
 }) {
   const [pwd, setPwd] = useState("");
@@ -323,7 +335,7 @@ function DoctorRow({
           Изменить профиль
         </Button>
         {manager ? (
-        <Button type="button" size="sm" variant="outline" onClick={() => onUpdate({ active: !d.active })}>
+        <Button type="button" size="sm" variant="outline" onClick={onToggleActive}>
           {d.active ? "Выкл." : "Вкл."}
         </Button>
         ) : null}

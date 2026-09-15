@@ -163,7 +163,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!storeReady || settings.requireLogin || doctorId) return;
-    const next = doctors.find((d) => d.active !== false);
+    const next = doctors.find((d) => d.active !== false) ?? doctors.find((d) => Boolean(d.passwordHash));
     if (next) login(next.id);
   }, [storeReady, settings.requireLogin, doctorId, doctors, login]);
 
