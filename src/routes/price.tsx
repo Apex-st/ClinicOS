@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { SwipeRow } from "@/components/swipe-row";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { groupLabel, money, sortedGroups } from "@/lib/format";
 import { useClinic } from "@/lib/store";
-import { TOOTH_STATUS_LABEL, visibleToothStatuses } from "@/lib/teeth";
+import { visibleToothStatuses } from "@/lib/teeth";
 import { cn } from "@/lib/utils";
 import type { Service, ServiceGroup, ToothStatus } from "@/lib/types";
 
@@ -38,7 +38,7 @@ function PricePage() {
   const [groupMenu, setGroupMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const menuArmed = useRef(false);
 
-  const list = sortedGroups(groups);
+  const list = useMemo(() => sortedGroups(groups), [groups]);
   const askService = services.find((s) => s.id === askId);
   const groupToDelete = groups.find((g) => g.id === askGroup);
 
@@ -576,7 +576,8 @@ function ServiceDialog({
   const [durationMin, setDurationMin] = useState(30);
   const [implies, setImplies] = useState("");
   const [active, setActive] = useState(true);
-  const toothStatuses = useClinic((s) => visibleToothStatuses(s.settings.toothStatuses));
+  const rawStatuses = useClinic((s) => s.settings.toothStatuses);
+  const toothStatuses = useMemo(() => visibleToothStatuses(rawStatuses), [rawStatuses]);
 
   useEffect(() => {
     if (!open) return;

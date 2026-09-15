@@ -43,7 +43,7 @@ export function LockScreen() {
       >
         <p className="font-display text-3xl text-ink">{settings.clinicName}</p>
         <h1 className="mt-2 font-display text-xl">Вход в кабинет</h1>
-        <p className="mt-1 text-sm text-muted">Логин и пароль врача. Сессия держится, пока открыта вкладка.</p>
+        <p className="mt-1 text-sm text-muted">Логин и пароль. Сессия держится, пока открыта вкладка.</p>
         <div className="mt-5 flex flex-col gap-3">
           <Field label="Логин">
             <Input

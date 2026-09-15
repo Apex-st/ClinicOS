@@ -210,6 +210,7 @@ function nextCardNumber(patients: Patient[]) {
 export function normalizeDoctor(d: Doctor): Doctor {
   return {
     ...d,
+    role: d.role === "admin" || d.role === "chief" || d.role === "doctor" ? d.role : "doctor",
     sharePercent: Number.isFinite(d.sharePercent) ? Math.max(0, Math.min(100, d.sharePercent)) : 40,
   };
 }

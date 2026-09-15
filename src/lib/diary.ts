@@ -1,5 +1,5 @@
 import type { DiagnosisDef, DiaryTemplate, ToothStatus, Visit, VisitDiary, VisitFinding, VisitKind } from "./types";
-import { diagnosisOptionLabel, findDiagnosis } from "./icd";
+import { diagnosisOptionLabel, findDiagnosis, sanitizeDiagnosisText } from "./icd";
 import { uid } from "./utils";
 
 export const VISIT_KIND_ORDER: VisitKind[] = ["primary", "repeat", "control", "emergency"];
@@ -264,7 +264,7 @@ export function diarySections(
   const findingTx: string[] = [];
   for (const f of diary.findings) {
     const tooth = f.toothFdi ? `Зуб ${f.toothFdi}` : "Зуб не указан";
-    const dx = f.diagnosisText.trim() || optionLabel("diagnosis", f.diagnosisId) || "";
+    const dx = sanitizeDiagnosisText(f.diagnosisText.trim() || optionLabel("diagnosis", f.diagnosisId) || "");
     const tx = f.treatments.map((t) => (extra.treatments.includes(t) ? t : optionLabel("treatments", t)));
     const localExam = (f.examChips ?? []).map((id) => optionLabel("toothExam", id));
     const mats = (f.materialIds ?? [])

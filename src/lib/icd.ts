@@ -15,12 +15,7 @@ export const DIAGNOSIS_CATEGORY_LABEL: Record<string, string> = Object.fromEntri
 );
 
 export function defaultDiagnosisTemplate(d: Pick<DiagnosisDef, "displayName" | "code">): string {
-  return [
-    "Зуб: {Зуб}",
-    "Жалобы: {Жалобы}",
-    "Объективно: {Объективные данные}",
-    `Диагноз: ${d.displayName}${d.code ? ` (${d.code})` : ""}`,
-  ].join("\n");
+  return d.code ? `${d.displayName} (${d.code})` : d.displayName;
 }
 
 function dx(
@@ -67,14 +62,16 @@ export function ensureDiagnosisTemplates(list: DiagnosisDef[] | undefined): Diag
   if (!list?.length) return seed;
   const byId = new Map(list.map((d) => [d.id, d]));
   const byName = new Map(list.map((d) => [d.name, d]));
-  const out = list.map((d) => ({
-    ...d,
-    displayName: d.displayName || d.name,
-    code: d.code ?? "",
-    description: d.description ?? "",
-    category: d.category || "other",
-    template: (d.template ?? "").trim() ? d.template : defaultDiagnosisTemplate(d),
-  }));
+  const out = list.map((d) => {
+    const base = {
+      ...d,
+      displayName: d.displayName || d.name,
+      code: d.code ?? "",
+      description: d.description ?? "",
+      category: d.category || "other",
+    };
+    return { ...base, template: cleanDiagnosisTemplate(d.template, base) };
+  });
   for (const s of seed) {
     if (!byId.has(s.id) && !byName.has(s.name)) out.push(s);
   }
@@ -101,10 +98,48 @@ export function applyDiagnosisTemplate(
   d: DiagnosisDef,
   vars: { tooth?: number; complaints?: string; exam?: string },
 ) {
-  const tpl = (d.template || defaultDiagnosisTemplate(d)).trim();
-  return tpl
-    .replaceAll("{Зуб}", vars.tooth != null ? String(vars.tooth) : "—")
-    .replaceAll("{Жалобы}", vars.complaints?.trim() || "—")
-    .replaceAll("{Объективные данные}", vars.exam?.trim() || "—")
+  const tpl = cleanDiagnosisTemplate(d.template, d);
+  const filled = tpl
+    .replaceAll("{Зуб}", vars.tooth != null ? String(vars.tooth) : "")
+    .replaceAll("{Жалобы}", vars.complaints?.trim() || "")
+    .replaceAll("{Объективные данные}", vars.exam?.trim() || "")
     .replaceAll("{Диагноз}", d.displayName);
+  return sanitizeDiagnosisText(filled) || diagnosisLabel(d);
+}
+
+/** Убирает из текста диагноза «Жалобы» и «Объективно» — они живут в своих пунктах дневника. */
+export function sanitizeDiagnosisText(text: string): string {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const kept: string[] = [];
+  for (const line of lines) {
+    if (/^(Жалобы|Объективно)\s*:/i.test(line)) continue;
+    if (/^Зуб\s*:/i.test(line)) continue;
+    const dx = line.match(/^Диагноз\s*:\s*(.*)$/i);
+    if (dx) {
+      if (dx[1].trim()) kept.push(dx[1].trim());
+      continue;
+    }
+    kept.push(line);
+  }
+  return kept.join("\n").trim();
+}
+
+function cleanDiagnosisTemplate(
+  template: string | undefined,
+  d: Pick<DiagnosisDef, "displayName" | "code">,
+): string {
+  const raw = (template ?? "").trim();
+  if (!raw) return defaultDiagnosisTemplate(d);
+  if (/\{Жалобы\}|\{Объективные данные\}|^\s*(Жалобы|Объективно)\s*:/im.test(raw)) {
+    const stripped = raw
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*(Жалобы|Объективно)\s*:/i.test(line))
+      .join("\n")
+      .trim();
+    if (!stripped || /^Зуб:\s*\{Зуб\}\s*\nДиагноз:\s*/i.test(stripped)) {
+      return defaultDiagnosisTemplate(d);
+    }
+    return stripped;
+  }
+  return raw;
 }

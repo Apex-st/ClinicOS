@@ -193,8 +193,8 @@ export function DiagnosesPanel() {
     <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
       <h2 className="font-display text-lg">Диагнозы МКБ-10</h2>
       <p className="mt-1 text-sm text-muted">
-        Справочник K00–K14. Существующие записи дневника не переписываются. В плане лечения шаблон подставляет текст,
-        врач может его изменить.
+        Справочник K00–K14. В диагноз попадает только формулировка из справочника. Жалобы и осмотр пишутся в своих
+        пунктах дневника, сюда они не подставляются.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск по названию или коду" />
@@ -246,7 +246,7 @@ export function DiagnosesPanel() {
           rows={3}
           value={template}
           onChange={(e) => setTemplate(e.target.value)}
-          placeholder="Шаблон: Зуб: {Зуб}&#10;Жалобы: {Жалобы}&#10;Диагноз: …"
+          placeholder="Только формулировка диагноза, без жалоб и осмотра"
         />
       </div>
       <Button

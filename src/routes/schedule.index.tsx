@@ -393,13 +393,17 @@ function WeekName({ name }: { name: string }) {
       </span>
       <span
         className={cn(
-          "flex h-full min-h-0 w-full flex-col justify-evenly overflow-hidden px-0.5 py-px text-left font-medium leading-none md:hidden",
+          "flex h-full min-h-0 w-full flex-col justify-start gap-0 overflow-hidden px-0.5 py-0 text-left font-medium md:hidden",
           size,
         )}
         data-week-name-mobile
       >
         {parts.map((p, i) => (
-          <span key={`${p}-${i}`} className="block overflow-hidden text-ellipsis whitespace-nowrap">
+          <span
+            key={`${p}-${i}`}
+            className="block overflow-hidden text-ellipsis whitespace-nowrap"
+            style={{ lineHeight: 1 }}
+          >
             {p}
           </span>
         ))}

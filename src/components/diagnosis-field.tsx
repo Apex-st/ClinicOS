@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { applyDiagnosisTemplate, DIAGNOSIS_CATEGORIES, diagnosisLabel, findDiagnosis } from "@/lib/icd";
+import { applyDiagnosisTemplate, DIAGNOSIS_CATEGORIES, diagnosisLabel, findDiagnosis, sanitizeDiagnosisText } from "@/lib/icd";
 import { useClinic } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +10,6 @@ export function DiagnosisField({
   diagnosisId,
   diagnosisText,
   toothFdi,
-  complaints,
-  exam,
   onChange,
   className,
 }: {
@@ -50,16 +48,14 @@ export function DiagnosisField({
     }
     const next = findDiagnosis(diagnoses, id);
     const autoPrev = current
-      ? applyDiagnosisTemplate(current, { tooth: toothFdi, complaints, exam })
+      ? sanitizeDiagnosisText(applyDiagnosisTemplate(current, { tooth: toothFdi }))
       : "";
+    const shown = sanitizeDiagnosisText(diagnosisText);
     const wasAuto =
-      !diagnosisText.trim() ||
-      (current != null &&
-        (diagnosisText.trim() === autoPrev.trim() || diagnosisText.trim() === diagnosisLabel(current)));
+      !shown ||
+      (current != null && (shown === autoPrev || shown === diagnosisLabel(current)));
     const text =
-      next && wasAuto
-        ? applyDiagnosisTemplate(next, { tooth: toothFdi, complaints, exam })
-        : diagnosisText;
+      next && wasAuto ? sanitizeDiagnosisText(applyDiagnosisTemplate(next, { tooth: toothFdi })) : diagnosisText;
     onChange({ diagnosisId: id, diagnosisText: text });
   }
 
@@ -89,7 +85,11 @@ export function DiagnosisField({
       <Textarea
         className="mt-1"
         rows={4}
-        value={diagnosisText}
+        value={
+          /Жалобы\s*:|Объективно\s*:/i.test(diagnosisText)
+            ? sanitizeDiagnosisText(diagnosisText) || diagnosisText
+            : diagnosisText
+        }
         onChange={(e) => onChange({ diagnosisId: diagnosisId ?? "", diagnosisText: e.target.value })}
         placeholder="Диагноз своими словами"
       />

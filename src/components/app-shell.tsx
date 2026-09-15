@@ -20,10 +20,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { applyTheme } from "@/lib/theme";
 import { shortName } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { needsFirstRun } from "@/lib/staff";
 import { useClinic } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { BackGesture } from "./back-gesture";
 import { LockScreen } from "./lock-screen";
+import { FirstRunSetup } from "./first-run-setup";
 import { ReminderWatch } from "./reminder-watch";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
@@ -86,6 +88,7 @@ function NavLink({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
+  const [storeReady, setStoreReady] = useState(false);
   const settings = useClinic((s) => s.settings);
   const doctors = useClinic((s) => s.doctors);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -103,15 +106,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     const mark = () => {
       if (done) return;
       done = true;
+      setStoreReady(true);
       const wait = Math.max(0, 900 - (Date.now() - started));
       window.setTimeout(() => document.documentElement.classList.add("denta-ready"), wait);
     };
-    if (useClinic.persist.hasHydrated()) mark();
-    const unsub = useClinic.persist.onFinishHydration(mark);
-    void useClinic.persist.rehydrate();
+    const persist = useClinic.persist;
+    if (persist?.hasHydrated?.()) mark();
+    const unsub = persist?.onFinishHydration?.(mark);
+    void persist?.rehydrate?.();
     const fallback = window.setTimeout(mark, 1200);
     return () => {
-      unsub();
+      unsub?.();
       window.clearTimeout(fallback);
     };
   }, [hydrate]);
@@ -129,6 +134,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMore(false);
   }, [pathname]);
 
+  if (!storeReady) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-bg px-4">
+        <p className="font-display text-3xl text-ink">ClinicOS</p>
+      </div>
+    );
+  }
+  if (needsFirstRun(doctors)) {
+    return <FirstRunSetup />;
+  }
   if (settings.requireLogin && !doctorId) {
     return <LockScreen />;
   }

@@ -59,6 +59,7 @@ import {
 import { budgetCsv, budgetPdfBlob, budgetXlsxBlob } from "@/lib/budget-export";
 import { formatDate, money, todayISO } from "@/lib/format";
 import { useSession } from "@/lib/session";
+import { canManageStaff } from "@/lib/staff";
 import { useClinic } from "@/lib/store";
 import type { BudgetCadence, BudgetKind, BudgetOp } from "@/lib/types";
 import { cn, shareOrDownload } from "@/lib/utils";
@@ -99,7 +100,7 @@ function BudgetPage() {
   const sessionDoctorId = useSession((s) => s.doctorId);
 
   const actor = doctors.find((d) => d.id === sessionDoctorId);
-  const canEdit = !settings.requireLogin || !actor || actor.role === "admin";
+  const canEdit = canManageStaff({ requireLogin: settings.requireLogin, actor });
 
   const [period, setPeriod] = useState<BudgetPeriod>("month");
   const [from, setFrom] = useState("");

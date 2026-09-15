@@ -371,7 +371,7 @@ export interface ContactLog {
   text: string;
 }
 
-export type DoctorRole = "admin" | "doctor";
+export type DoctorRole = "admin" | "chief" | "doctor";
 
 export interface Doctor {
   id: string;

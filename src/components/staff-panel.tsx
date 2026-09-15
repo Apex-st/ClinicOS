@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { fullName } from "@/lib/format";
 import { hashPassword, randomSalt } from "@/lib/passwords";
 import { useSession } from "@/lib/session";
+import { canManageStaff, DOCTOR_ROLES, roleLabel } from "@/lib/staff";
 import { useClinic } from "@/lib/store";
 import type { Doctor, DoctorRole } from "@/lib/types";
 
@@ -23,6 +24,7 @@ export function StaffPanel() {
   const deleteDoctor = useClinic((s) => s.deleteDoctor);
   const updateSettings = useClinic((s) => s.updateSettings);
   const sessionId = useSession((s) => s.doctorId);
+  const manager = canManageStaff({ requireLogin: settings.requireLogin, actor: doctors.find((d) => d.id === sessionId) });
   const [askId, setAskId] = useState<string | null>(null);
   const [form, setForm] = useState({
     lastName: "",
@@ -104,9 +106,11 @@ export function StaffPanel() {
     <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
       <h2 className="font-display text-lg">Врачи и вход</h2>
       <p className="mt-1 text-sm text-muted">
-        Аккаунты хранятся в программе. Пока защита выключена, кабинет открывается сразу — так удобно настроить пароли.
+        Профили хранятся в программе. Главный врач и администратор заводят остальных. После первого входа кабинет
+        открывается по паролю.
       </p>
 
+      {manager ? (
       <label className="mt-4 flex items-center gap-3 text-sm">
         <input
           type="checkbox"
@@ -115,6 +119,7 @@ export function StaffPanel() {
         />
         Требовать логин и пароль при открытии
       </label>
+      ) : null}
 
       <ul className="mt-5 flex flex-col gap-3">
         {doctors.map((d) => (
@@ -122,7 +127,8 @@ export function StaffPanel() {
             key={d.id}
             d={d}
             current={sessionId === d.id}
-            canDelete={doctors.length > 1}
+            canDelete={manager && doctors.length > 1}
+            manager={manager}
             others={doctors}
             onUpdate={(patch) => updateDoctor(d.id, patch)}
             onPassword={(pwd) => void setPass(d.id, pwd)}
@@ -131,8 +137,10 @@ export function StaffPanel() {
         ))}
       </ul>
 
+      {manager ? (
       <div className="mt-6 border-t border-line pt-4">
-        <h3 className="font-medium">Новый врач</h3>
+        <h3 className="font-medium">Новый профиль</h3>
+        <p className="mt-1 text-[12px] text-muted">Врач, главный врач или администратор.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Field label="Фамилия">
             <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
@@ -161,8 +169,11 @@ export function StaffPanel() {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value as DoctorRole })}
             >
-              <option value="doctor">Врач</option>
-              <option value="admin">Администратор</option>
+              {DOCTOR_ROLES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
             </Select>
           </Field>
           <Field label="Процент от кассы">
@@ -199,6 +210,9 @@ export function StaffPanel() {
           Создать аккаунт
         </Button>
       </div>
+      ) : (
+        <p className="mt-6 text-sm text-muted">Новые профили заводит главный врач или администратор.</p>
+      )}
 
       <ConfirmDialog
         open={Boolean(askId)}
@@ -218,6 +232,7 @@ function DoctorRow({
   d,
   current,
   canDelete,
+  manager,
   others,
   onUpdate,
   onPassword,
@@ -226,6 +241,7 @@ function DoctorRow({
   d: Doctor;
   current: boolean;
   canDelete: boolean;
+  manager: boolean;
   others: Doctor[];
   onUpdate: (patch: Partial<Doctor>) => void;
   onPassword: (password: string) => void;
@@ -247,7 +263,7 @@ function DoctorRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {current ? <Badge tone="ok">в системе</Badge> : null}
-          <Badge tone={d.role === "admin" ? "primary" : "muted"}>{d.role === "admin" ? "админ" : "врач"}</Badge>
+          <Badge tone={d.role === "doctor" ? "muted" : "primary"}>{roleLabel(d.role)}</Badge>
           <Badge tone={d.passwordHash ? "ok" : "warn"}>{d.passwordHash ? "пароль задан" : "нет пароля"}</Badge>
         </div>
       </div>
@@ -255,9 +271,11 @@ function DoctorRow({
         <Button type="button" size="sm" variant="secondary" onClick={() => setEdit(true)}>
           Изменить профиль
         </Button>
+        {manager ? (
         <Button type="button" size="sm" variant="outline" onClick={() => onUpdate({ active: !d.active })}>
           {d.active ? "Выкл." : "Вкл."}
         </Button>
+        ) : null}
         {canDelete ? (
           <button type="button" className="grid size-11 place-items-center text-muted hover:text-danger" onClick={onDelete}>
             <Trash2 className="size-4" />
@@ -268,6 +286,7 @@ function DoctorRow({
         open={edit}
         doctor={d}
         others={others}
+        manager={manager}
         password={pwd}
         onPasswordChange={setPwd}
         onOpenChange={setEdit}
@@ -289,6 +308,7 @@ function DoctorEditDialog({
   open,
   doctor,
   others,
+  manager,
   password,
   onPasswordChange,
   onOpenChange,
@@ -297,6 +317,7 @@ function DoctorEditDialog({
   open: boolean;
   doctor: Doctor;
   others: Doctor[];
+  manager: boolean;
   password: string;
   onPasswordChange: (v: string) => void;
   onOpenChange: (o: boolean) => void;
@@ -358,9 +379,16 @@ function DoctorEditDialog({
             />
           </Field>
           <Field label="Роль">
-            <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as DoctorRole })}>
-              <option value="doctor">Врач</option>
-              <option value="admin">Администратор</option>
+            <Select
+              value={form.role}
+              disabled={!manager}
+              onChange={(e) => setForm({ ...form, role: e.target.value as DoctorRole })}
+            >
+              {DOCTOR_ROLES.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
             </Select>
           </Field>
           <Field label="Процент от кассы">
