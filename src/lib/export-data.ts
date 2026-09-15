@@ -8,6 +8,7 @@ import type { ClinicData } from "./store";
 import type { Patient } from "./types";
 import { uid } from "./utils";
 import { APP_VERSION } from "./version";
+import type { BackupEnvelope } from "./vault";
 
 export const EXPORT_FORMAT = 3;
 
@@ -58,6 +59,7 @@ export interface ImportPreview {
   counts: Partial<Record<ExportSectionId, number>>;
   conflicts: Patient[];
   warnings: string[];
+  envelope?: BackupEnvelope;
 }
 
 export interface ImportFail {

@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronRight,
   Clock,
+  Cloud,
   Contact,
   FileText,
   HardDrive,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
 import { ChipGroup } from "@/components/chip-toggle";
 import { StaffPanel } from "@/components/staff-panel";
+import { SyncPanel } from "@/components/sync-panel";
 import { ThemePicker } from "@/components/theme-picker";
 import { SaveFileDialog } from "@/components/save-file-dialog";
 import { Field, Select } from "@/components/ui/field";
@@ -86,6 +88,7 @@ const SETTINGS_SECTIONS = [
   { id: "notify", title: "Уведомления", hint: "Шторка и календарь", icon: Bell },
   { id: "look", title: "Оформление", hint: "Светлая и тёмная тема", icon: Palette },
   { id: "backup", title: "Копия", hint: "Сохранить и восстановить", icon: HardDrive },
+  { id: "sync", title: "Синхронизация", hint: "Общая папка Google Диска", icon: Cloud },
   { id: "about", title: "О программе", hint: "Версия и список изменений", icon: Info },
 ] as const;
 
@@ -570,7 +573,7 @@ function SettingsPage() {
       <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
         <h2 className="font-display text-lg">Резервная копия</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
-          Копия — файл на этом устройстве, не облако. После включения защиты архив пишется в зашифрованном виде
+          Копия — файл на этом устройстве. Обмен между людьми — в разделе «Синхронизация»: общая папка Google Диска. После включения защиты архив пишется в зашифрованном виде
           (.denta): его откроет пароль врача или ключ восстановления. Старые zip и JSON по-прежнему принимаются.
           «Сохранить копию» пишет файл в Документы/ClinicOS и предлагает «Поделиться». Совпадения карточек программа не
           сливает сама.
@@ -614,6 +617,8 @@ function SettingsPage() {
         </div>
       </section>
       ) : null}
+
+      {section === "sync" ? <SyncPanel /> : null}
 
       {section === "about" ? (
         <>

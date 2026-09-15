@@ -43,6 +43,10 @@ export type BackupEnvelope = {
   recovery: KeyWrap | null;
   iv: string;
   ct: string;
+  /** Общая папка: какой кабинет и какая ревизия файла. */
+  syncId?: string;
+  syncRev?: number;
+  deviceId?: string;
 };
 
 function canUseStorage() {

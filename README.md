@@ -40,8 +40,16 @@
 - **v2.30** — [ClinicOS-2.30.apk](./ClinicOS-2.30.apk), релиз [ClinicOS 2.30](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.30)
 - **v2.31** — [ClinicOS-2.31.apk](./ClinicOS-2.31.apk), релиз [ClinicOS 2.31](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.31)
 - **v2.32** — [ClinicOS-2.32.apk](./ClinicOS-2.32.apk), релиз [ClinicOS 2.32](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.32)
+- **v2.33** — [ClinicOS-2.33.apk](./ClinicOS-2.33.apk), релиз [ClinicOS 2.33](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.33)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
+
+### Что нового в 2.33
+
+- **Синхронизация** — в настройках выбирается папка Google Диска. Программа сама пишет туда зашифрованный файл кабинета.
+- **Доступ коллеге** — в Google Диске вы открываете ему эту папку (права «Редактор»). Без пароля врача файл не читается.
+- **Первый вход** — можно открыть кабинет из этой папки, а не только создать профиль.
+- **Спор копий** — если оба устройства меняли данные, программа спросит, какую копию оставить.
 
 ### Что нового в 2.32
 

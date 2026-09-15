@@ -10,6 +10,7 @@ import { useSession } from "@/lib/session";
 import { DOCTOR_ROLES, hasPasswordAccount } from "@/lib/staff";
 import { shortName } from "@/lib/format";
 import { useClinic } from "@/lib/store";
+import { connectFolder, openCabinetFromFolder, syncPickerHint } from "@/lib/clinic-sync";
 import type { DoctorRole } from "@/lib/types";
 
 export function FirstRunSetup() {
@@ -20,7 +21,7 @@ export function FirstRunSetup() {
   const updateSettings = useClinic((s) => s.updateSettings);
   const login = useSession((s) => s.login);
   const canSignIn = hasPasswordAccount(doctors);
-  const [mode, setMode] = useState<"create" | "login">(canSignIn ? "login" : "create");
+  const [mode, setMode] = useState<"create" | "login" | "folder">(canSignIn ? "login" : "create");
   const [clinicName, setClinicName] = useState(settings.clinicName || "ClinicOS");
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -31,6 +32,8 @@ export function FirstRunSetup() {
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [busy, setBusy] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  const picker = syncPickerHint();
 
   async function submitLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +63,48 @@ export function FirstRunSetup() {
       }
       login(result.doctorId);
       maybePersistAutoUnlock();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickFolder() {
+    setBusy(true);
+    try {
+      const r = await connectFolder("drive");
+      setFolderName(r.folderName);
+      if (r.status === "empty") {
+        toast.error("В папке нет файла кабинета. Сначала подключите её там, где кабинет уже ведётся.");
+      }
+    } catch (err) {
+      const msg = String((err as { message?: string })?.message || err);
+      if (msg.includes("canceled")) return;
+      if (msg.includes("picker-unavailable")) {
+        toast.error("В этом окне нельзя выбрать папку Диска. На телефоне или в Chrome кнопка откроет Диск.");
+        return;
+      }
+      toast.error("Не удалось открыть папку");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitFolder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!password) {
+      toast.error("Введите пароль врача из того кабинета");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await openCabinetFromFolder(password);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.doctorId) login(result.doctorId);
+      maybePersistAutoUnlock();
+      toast.success("Кабинет открыт из папки");
     } finally {
       setBusy(false);
     }
@@ -129,6 +174,48 @@ export function FirstRunSetup() {
     }
   }
 
+  const links = (
+    <div className="mt-4 flex flex-col gap-2">
+      {mode !== "folder" ? (
+        <button
+          type="button"
+          className="text-center text-sm text-muted hover:text-ink"
+          onClick={() => {
+            setMode("folder");
+            setPassword("");
+          }}
+        >
+          Открыть кабинет из папки Диска
+        </button>
+      ) : null}
+      {mode !== "create" ? (
+        <button
+          type="button"
+          className="text-center text-sm text-muted hover:text-ink"
+          onClick={() => {
+            setMode("create");
+            setPassword("");
+            setPassword2("");
+          }}
+        >
+          Создать новый профиль
+        </button>
+      ) : null}
+      {mode !== "login" ? (
+        <button
+          type="button"
+          className="text-center text-sm text-muted hover:text-ink"
+          onClick={() => {
+            setMode("login");
+            setPassword("");
+          }}
+        >
+          У меня уже есть аккаунт
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="grid min-h-dvh place-items-center bg-bg px-4 py-8">
       {mode === "login" ? (
@@ -156,16 +243,40 @@ export function FirstRunSetup() {
             <Button type="submit" disabled={busy || !loginName || !password}>
               {busy ? "Проверка…" : "Войти"}
             </Button>
-            <button
-              type="button"
-              className="text-center text-sm text-muted hover:text-ink"
-              onClick={() => {
-                setMode("create");
-                setPassword("");
-              }}
-            >
-              Создать новый профиль
-            </button>
+            {links}
+          </div>
+        </form>
+      ) : mode === "folder" ? (
+        <form
+          onSubmit={(e) => void submitFolder(e)}
+          className="w-full max-w-md rounded-xl bg-surface p-6 shadow-[var(--shadow-lift)]"
+        >
+          <p className="font-display text-3xl text-ink">ClinicOS</p>
+          <h1 className="mt-2 font-display text-xl">Кабинет из папки</h1>
+          <p className="mt-1 text-sm text-muted">
+            Выберите ту же папку Google Диска, к которой вам открыли доступ. Файл зашифрован — нужен пароль врача.
+          </p>
+          <div className="mt-5 flex flex-col gap-3">
+            <Button type="button" variant="outline" disabled={busy} onClick={() => void pickFolder()}>
+              {folderName ? `Папка: ${folderName}` : "Выбрать папку Диска"}
+            </Button>
+            {picker === "blocked" ? (
+              <p className="text-[12px] text-muted">
+                В этом окне выбор папки может не открыться. На Android или в Chrome появится окно Диска.
+              </p>
+            ) : null}
+            <Field label="Пароль или ключ восстановления">
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoFocus
+              />
+            </Field>
+            <Button type="submit" disabled={busy || !password}>
+              {busy ? "Открываю…" : "Открыть кабинет"}
+            </Button>
+            {links}
           </div>
         </form>
       ) : (
@@ -229,17 +340,7 @@ export function FirstRunSetup() {
           <Button type="submit" disabled={busy}>
             {busy ? "Сохраняю…" : "Создать профиль и войти"}
           </Button>
-          <button
-            type="button"
-            className="text-center text-sm text-muted hover:text-ink"
-            onClick={() => {
-              setMode("login");
-              setPassword("");
-              setPassword2("");
-            }}
-          >
-            У меня уже есть аккаунт
-          </button>
+          {links}
         </div>
       </form>
       )}

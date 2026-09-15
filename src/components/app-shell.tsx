@@ -30,6 +30,7 @@ import { LockScreen } from "./lock-screen";
 import { FirstRunSetup } from "./first-run-setup";
 import { RecoveryKeyScreen } from "./recovery-key-screen";
 import { ReminderWatch } from "./reminder-watch";
+import { SyncWatch } from "./sync-watch";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
 const NAV = [
@@ -191,6 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh overflow-hidden bg-bg">
       <BackGesture />
       <ReminderWatch />
+      <SyncWatch />
       <aside className="hidden h-full w-56 shrink-0 flex-col overflow-y-auto bg-rail px-3 py-5 md:flex">
         <div className="px-3 pb-6">
           <p className="font-display text-2xl text-rail-fg">{settings.clinicName}</p>

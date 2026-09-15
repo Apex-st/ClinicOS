@@ -51,7 +51,10 @@ async function zipClinic(state: ClinicData, sections: ExportSectionId[]) {
   return copy;
 }
 
-async function encryptBackupZip(zip: Uint8Array): Promise<BackupEnvelope | null> {
+async function encryptBackupZip(
+  zip: Uint8Array,
+  sync?: { syncId: string; syncRev: number; deviceId: string },
+): Promise<BackupEnvelope | null> {
   const dek = getDek();
   const vault = readVault();
   if (!dek || !vault) return null;
@@ -65,13 +68,20 @@ async function encryptBackupZip(zip: Uint8Array): Promise<BackupEnvelope | null>
     recovery: vault.recovery,
     iv: bytesToBase64(iv),
     ct: bytesToBase64(ct),
+    ...(sync
+      ? { syncId: sync.syncId, syncRev: sync.syncRev, deviceId: sync.deviceId }
+      : {}),
   };
 }
 
-export async function buildBackupZip(state: ClinicData, sections: ExportSectionId[]) {
+export async function buildBackupZip(
+  state: ClinicData,
+  sections: ExportSectionId[],
+  sync?: { syncId: string; syncRev: number; deviceId: string },
+) {
   const zip = await zipClinic(state, sections);
   if (hasVault() && getDek()) {
-    const env = await encryptBackupZip(zip);
+    const env = await encryptBackupZip(zip, sync);
     if (env) {
       return {
         blob: new Blob([JSON.stringify(env)], { type: "application/json" }),
@@ -170,7 +180,9 @@ async function parseEncryptedBackup(env: BackupEnvelope, password?: string): Pro
   }
   try {
     const zip = await decryptBytes(dek, base64ToBytes(env.iv), base64ToBytes(env.ct));
-    return parseBackupZip(zip);
+    const parsed = parseBackupZip(zip);
+    if (parsed.ok) parsed.envelope = env;
+    return parsed;
   } catch {
     return { ok: false, error: "Не удалось открыть зашифрованную копию." };
   }
