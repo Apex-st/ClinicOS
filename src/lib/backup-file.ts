@@ -1,9 +1,18 @@
 import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import { buildExport, parseExportFile, type ExportSectionId, type ParseResult } from "@/lib/export-data";
+import { decryptBytes, encryptBytes, base64ToBytes, bytesToBase64, unwrapDek, recoverySecret, parseRecoveryKey } from "@/lib/crypto";
+import { getDek } from "@/lib/crypto-session";
 import { todayISO } from "@/lib/format";
 import { getPhotoBlob } from "@/lib/photos-idb";
 import type { ClinicData } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
+import {
+  BACKUP_ENC_KIND,
+  hasVault,
+  isBackupEnvelope,
+  readVault,
+  type BackupEnvelope,
+} from "@/lib/vault";
 
 function extOf(type: string) {
   if (type.includes("png")) return ".png";
@@ -24,7 +33,7 @@ export function isZipBytes(buf: Uint8Array) {
   return buf.length >= 2 && buf[0] === 0x50 && buf[1] === 0x4b;
 }
 
-export async function buildBackupZip(state: ClinicData, sections: ExportSectionId[]) {
+async function zipClinic(state: ClinicData, sections: ExportSectionId[]) {
   const payload = await buildExport(state, sections, { embedPhotos: false });
   const files: Record<string, Uint8Array> = {
     "denta-export.json": strToU8(JSON.stringify(payload)),
@@ -39,10 +48,46 @@ export async function buildBackupZip(state: ClinicData, sections: ExportSectionI
   const zipped = zipSync(files, { level: 6 });
   const copy = new Uint8Array(zipped.byteLength);
   copy.set(zipped);
+  return copy;
+}
+
+async function encryptBackupZip(zip: Uint8Array): Promise<BackupEnvelope | null> {
+  const dek = getDek();
+  const vault = readVault();
+  if (!dek || !vault) return null;
+  const { iv, ct } = await encryptBytes(dek, zip);
+  return {
+    kind: BACKUP_ENC_KIND,
+    v: 1,
+    appVersion: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    wraps: vault.wraps,
+    recovery: vault.recovery,
+    iv: bytesToBase64(iv),
+    ct: bytesToBase64(ct),
+  };
+}
+
+export async function buildBackupZip(state: ClinicData, sections: ExportSectionId[]) {
+  const zip = await zipClinic(state, sections);
+  if (hasVault() && getDek()) {
+    const env = await encryptBackupZip(zip);
+    if (env) {
+      return {
+        blob: new Blob([JSON.stringify(env)], { type: "application/json" }),
+        name: `denta-${todayISO()}.denta`,
+        appVersion: APP_VERSION,
+        encrypted: true as const,
+      };
+    }
+  }
+  const copy = new Uint8Array(zip.byteLength);
+  copy.set(zip);
   return {
     blob: new Blob([copy], { type: "application/zip" }),
     name: `denta-${todayISO()}.zip`,
     appVersion: APP_VERSION,
+    encrypted: false as const,
   };
 }
 
@@ -91,14 +136,56 @@ function parseBackupZip(buf: Uint8Array): ParseResult {
   return parsed;
 }
 
-export async function parseBackupFile(file: File): Promise<ParseResult> {
+async function dekFromBackup(env: BackupEnvelope, password?: string): Promise<Uint8Array | null> {
+  const current = getDek();
+  if (current) {
+    try {
+      await decryptBytes(current, base64ToBytes(env.iv), base64ToBytes(env.ct));
+      return current;
+    } catch {
+      /* another cabinet */
+    }
+  }
+  if (!password) return null;
+  for (const wrap of env.wraps ?? []) {
+    if (!wrap.ct) continue;
+    const dek = await unwrapDek(wrap, password);
+    if (dek) return dek;
+  }
+  if (env.recovery && parseRecoveryKey(password)) {
+    const dek = await unwrapDek(env.recovery, recoverySecret(password));
+    if (dek) return dek;
+  }
+  return null;
+}
+
+async function parseEncryptedBackup(env: BackupEnvelope, password?: string): Promise<ParseResult> {
+  const dek = await dekFromBackup(env, password);
+  if (!dek) {
+    return {
+      ok: false,
+      error: "Нужен пароль врача или ключ восстановления, которым закрыта эта копия.",
+      needPassword: true,
+    };
+  }
+  try {
+    const zip = await decryptBytes(dek, base64ToBytes(env.iv), base64ToBytes(env.ct));
+    return parseBackupZip(zip);
+  } catch {
+    return { ok: false, error: "Не удалось открыть зашифрованную копию." };
+  }
+}
+
+export async function parseBackupFile(file: File, password?: string): Promise<ParseResult> {
   const buf = new Uint8Array(await file.arrayBuffer());
   if (isZipBytes(buf) || file.name.toLowerCase().endsWith(".zip")) {
     return parseBackupZip(buf);
   }
   try {
-    return parseExportFile(JSON.parse(new TextDecoder().decode(buf)));
+    const json = JSON.parse(new TextDecoder().decode(buf)) as unknown;
+    if (isBackupEnvelope(json)) return parseEncryptedBackup(json, password);
+    return parseExportFile(json);
   } catch {
-    return { ok: false, error: "Не удалось прочитать файл. Нужна копия Денты (zip) или старый JSON." };
+    return { ok: false, error: "Не удалось прочитать файл. Нужна копия ClinicOS (.denta, zip) или старый JSON." };
   }
 }

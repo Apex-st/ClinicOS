@@ -107,6 +107,7 @@ function SettingsPage() {
   const [tableOpen, setTableOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [backupBusy, setBackupBusy] = useState(false);
+  const [backupUnlock, setBackupUnlock] = useState<{ file: File; password: string } | null>(null);
   const section = SETTINGS_SECTIONS.some((s) => s.id === hash) ? (hash as SettingsSection) : null;
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -144,13 +145,19 @@ function SettingsPage() {
     }
   }
 
-  async function importBackup(file: File) {
+  async function importBackup(file: File, password?: string) {
     try {
-      const parsed = await parseBackupFile(file);
+      const parsed = await parseBackupFile(file, password);
       if (!parsed.ok) {
+        if (parsed.needPassword) {
+          setBackupUnlock({ file, password: password || "" });
+          if (password) toast.error(parsed.error);
+          return;
+        }
         toast.error(parsed.error);
         return;
       }
+      setBackupUnlock(null);
       setImportPreview(parsed);
     } catch {
       toast.error("Не удалось прочитать файл");
@@ -563,9 +570,10 @@ function SettingsPage() {
       <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
         <h2 className="font-display text-lg">Резервная копия</h2>
         <p className="mt-2 max-w-prose text-sm text-muted">
-          Копия — файл на этом устройстве, не облако. «Сохранить копию» пишет архив zip в папку Документы/ClinicOS и
-          предлагает «Поделиться» (Telegram, Диск, флешка). «Восстановить» — выберите этот архив или старый JSON.
-          Совпадения карточек программа не сливает сама.
+          Копия — файл на этом устройстве, не облако. После включения защиты архив пишется в зашифрованном виде
+          (.denta): его откроет пароль врача или ключ восстановления. Старые zip и JSON по-прежнему принимаются.
+          «Сохранить копию» пишет файл в Документы/ClinicOS и предлагает «Поделиться». Совпадения карточек программа не
+          сливает сама.
         </p>
         <ul className="mt-4 grid gap-1 sm:grid-cols-2">
           {EXPORT_SECTIONS.map((s) => (
@@ -595,7 +603,7 @@ function SettingsPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".zip,.json,application/zip,application/json"
+            accept=".zip,.json,.denta,application/zip,application/json"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -614,6 +622,40 @@ function SettingsPage() {
         </>
       ) : null}
 
+      <Dialog open={Boolean(backupUnlock)} onOpenChange={(o) => { if (!o) setBackupUnlock(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Пароль копии</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted">
+            Файл зашифрован. Введите пароль врача из того кабинета или ключ восстановления.
+          </p>
+          <Field label="Пароль или ключ" className="mt-3">
+            <Input
+              type="password"
+              value={backupUnlock?.password ?? ""}
+              onChange={(e) =>
+                setBackupUnlock((cur) => (cur ? { ...cur, password: e.target.value } : cur))
+              }
+              autoFocus
+            />
+          </Field>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button type="button" variant="ghost" onClick={() => setBackupUnlock(null)}>
+              Отмена
+            </Button>
+            <Button
+              type="button"
+              disabled={!backupUnlock?.password}
+              onClick={() => {
+                if (backupUnlock) void importBackup(backupUnlock.file, backupUnlock.password);
+              }}
+            >
+              Открыть
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <SaveFileDialog
         open={Boolean(icsFile)}
         onOpenChange={(o) => {

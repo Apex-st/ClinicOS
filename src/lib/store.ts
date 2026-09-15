@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clearAllPhotoBlobs, deletePhotoBlobs } from "./photos-idb";
+import { securePersistStorage } from "./secure-storage";
+import { patchVaultLogin, removeVaultWrap } from "./vault";
 import { buildSeed, defaultSettings, seedCharts, seedDiaryTemplates, seedDiscountTypes, seedDoctors, seedPatients, seedServiceGroups } from "./seed";
 import { diagnosisToTooth, emptyDiary, emptyFinding, enrichDiaryTemplates, suggestVisitKind, treatmentToTooth } from "./diary";
 import { nextAfter, seedBudgetCategories } from "./budget";
@@ -652,11 +654,13 @@ export const useClinic = create<ClinicState>()(
         set({
           doctors: get().doctors.map((d) => (d.id === id ? normalizeDoctor({ ...d, ...patch }) : d)),
         });
+        if (patch.login) patchVaultLogin(id, patch.login);
       },
       deleteDoctor: (id) => {
         const rest = get().doctors.filter((d) => d.id !== id);
         if (rest.length === 0) return;
         set({ doctors: rest });
+        removeVaultWrap(id);
       },
       addDiaryTemplate: (draft) => {
         const id = uid("tpl");
@@ -1069,6 +1073,7 @@ export const useClinic = create<ClinicState>()(
       name: "denta-clinic-v1",
       version: 17,
       skipHydration: true,
+      storage: securePersistStorage as never,
       partialize: (s) => ({
         patients: s.patients,
         services: s.services,
@@ -1260,5 +1265,28 @@ export const useClinic = create<ClinicState>()(
     },
   ),
 );
+
+export function lockClinicMemory() {
+  const next = buildSeed();
+  useClinic.setState({
+    ...next,
+    albums: [],
+    tags: seedTags(),
+    diagnoses: seedDiagnoses(),
+    messageTemplates: seedMessageTemplates(),
+    notifyRules: seedNotifyRules(),
+    customSocials: [],
+    customMedical: [],
+    budgetOps: [],
+    budgetCategories: seedBudgetCategories(),
+    budgetVendors: [],
+    budgetRecurring: [],
+    budgetPlans: [],
+    stockGroups: seedStockGroups(),
+    stockItems: seedStockItems(),
+    orthoCards: {},
+    prosthoCards: {},
+  });
+}
 
 export { emptyChart };

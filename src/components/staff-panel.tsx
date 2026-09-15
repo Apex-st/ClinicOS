@@ -9,7 +9,10 @@ import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { fullName } from "@/lib/format";
 import { hashPassword, randomSalt } from "@/lib/passwords";
-import { useSession } from "@/lib/session";
+import { rotateRecoveryKey, wrapDoctorPassword } from "@/lib/encryption";
+import { clearDekUnlock, getDek, persistDekUnlock } from "@/lib/crypto-session";
+import { hasVault, patchVaultRequireLogin } from "@/lib/vault";
+import { useSession, AUTO_SESSION_KEY } from "@/lib/session";
 import { canManageStaff, DOCTOR_ROLES, roleLabel } from "@/lib/staff";
 import { useClinic } from "@/lib/store";
 import type { Doctor, DoctorRole } from "@/lib/types";
@@ -24,6 +27,7 @@ export function StaffPanel() {
   const deleteDoctor = useClinic((s) => s.deleteDoctor);
   const updateSettings = useClinic((s) => s.updateSettings);
   const sessionId = useSession((s) => s.doctorId);
+  const login = useSession((s) => s.login);
   const manager = canManageStaff({ requireLogin: settings.requireLogin, actor: doctors.find((d) => d.id === sessionId) });
   const [askId, setAskId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -55,7 +59,7 @@ export function StaffPanel() {
     }
     const salt = randomSalt();
     const passwordHash = await hashPassword(form.password, salt);
-    addDoctor({
+    const id = addDoctor({
       lastName: form.lastName.trim(),
       firstName: form.firstName.trim(),
       middleName: form.middleName.trim(),
@@ -68,6 +72,7 @@ export function StaffPanel() {
       active: true,
       sharePercent: form.sharePercent,
     });
+    await wrapDoctorPassword(id, form.login.trim(), form.password);
     toast.success("Аккаунт врача создан");
     setForm({
       lastName: "",
@@ -90,6 +95,8 @@ export function StaffPanel() {
     const salt = randomSalt();
     const passwordHash = await hashPassword(password, salt);
     updateDoctor(id, { passwordHash, passwordSalt: salt });
+    const doc = useClinic.getState().doctors.find((d) => d.id === id);
+    await wrapDoctorPassword(id, doc?.login || "", password);
     toast.success("Пароль сохранён");
   }
 
@@ -98,17 +105,55 @@ export function StaffPanel() {
       toast.error("Сначала задайте пароль хотя бы одному врачу");
       return;
     }
+    if (!on && hasVault()) {
+      const dek = getDek();
+      if (!dek) {
+        toast.error("Сначала войдите, чтобы отключить пароль");
+        return;
+      }
+      persistDekUnlock(dek);
+      patchVaultRequireLogin(false);
+      updateSettings({ requireLogin: false });
+      if (sessionId) login(sessionId);
+      toast.success("Вход без пароля на этом устройстве");
+      return;
+    }
+    if (on) {
+      patchVaultRequireLogin(true);
+      clearDekUnlock();
+      try {
+        localStorage.removeItem(AUTO_SESSION_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
     updateSettings({ requireLogin: on });
-    toast.success(on ? "Вход по паролю включён" : "Защита выключена");
+    toast.success(on ? "Вход по паролю включён" : "Кабинет открывается без пароля");
+  }
+
+  async function newRecovery() {
+    try {
+      await rotateRecoveryKey();
+      toast.success("Новый ключ восстановления");
+    } catch {
+      toast.error("Не удалось создать ключ");
+    }
   }
 
   return (
     <section className="rounded-xl bg-surface p-5 shadow-[var(--shadow-card)]">
       <h2 className="font-display text-lg">Врачи и вход</h2>
       <p className="mt-1 text-sm text-muted">
-        Профили хранятся в программе. Главный врач и администратор заводят остальных. После первого входа кабинет
-        открывается по паролю.
+        Профили хранятся в программе. Главный врач и администратор заводят остальных. Карточки, дневники и снимки
+        шифруются на диске.
       </p>
+
+      {hasVault() ? (
+        <p className="mt-3 rounded-lg bg-bg px-3 py-2 text-[13px] text-muted">
+          Данные закрыты AES-256. Если снять галочку ниже, кабинет открывается сразу на этом телефоне или компьютере —
+          пароль не спрашиваем. Копия по-прежнему в зашифрованном файле.
+        </p>
+      ) : null}
 
       {manager ? (
       <label className="mt-4 flex items-center gap-3 text-sm">
@@ -119,6 +164,12 @@ export function StaffPanel() {
         />
         Требовать логин и пароль при открытии
       </label>
+      ) : null}
+
+      {manager && hasVault() ? (
+        <Button type="button" variant="outline" className="mt-3" onClick={() => void newRecovery()}>
+          Новый ключ восстановления
+        </Button>
       ) : null}
 
       <ul className="mt-5 flex flex-col gap-3">

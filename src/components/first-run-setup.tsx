@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { enableEncryption } from "@/lib/encryption";
 import { hashPassword, randomSalt } from "@/lib/passwords";
 import { useSession } from "@/lib/session";
 import { DOCTOR_ROLES } from "@/lib/staff";
@@ -68,11 +69,24 @@ export function FirstRunSetup() {
         toast.error("Не удалось сохранить профиль");
         return;
       }
+      const name = clinicName.trim() || "ClinicOS";
       updateSettings({
-        clinicName: clinicName.trim() || "ClinicOS",
+        clinicName: name,
         doctorName: shortName(patch),
         requireLogin: true,
       });
+      try {
+        await enableEncryption({
+          doctorId: id,
+          login: patch.login,
+          password,
+          clinicName: name,
+          welcomeName: shortName(patch),
+        });
+      } catch {
+        toast.error("Не удалось включить шифрование данных");
+        return;
+      }
       login(id);
     } finally {
       setBusy(false);
@@ -88,8 +102,8 @@ export function FirstRunSetup() {
         <p className="font-display text-3xl text-ink">ClinicOS</p>
         <h1 className="mt-2 font-display text-xl">Первый вход</h1>
         <p className="mt-1 text-sm text-muted">
-          Создайте свой профиль. Дальше кабинет открывается по логину и паролю. Главный врач и администратор могут
-          заводить остальных.
+          Создайте свой профиль. Дальше кабинет открывается по логину и паролю, карточки и снимки шифруются на этом
+          устройстве. Главный врач и администратор могут заводить остальных.
         </p>
         <div className="mt-5 flex flex-col gap-3">
           <Field label="Название кабинета">

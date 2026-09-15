@@ -19,13 +19,16 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { applyTheme } from "@/lib/theme";
 import { shortName } from "@/lib/format";
+import { getPendingRecoveryKey, hasDek, restoreDek, subscribeRecoveryKey } from "@/lib/crypto-session";
+import { hasVault, isPersistEncrypted } from "@/lib/vault";
 import { useSession } from "@/lib/session";
 import { needsFirstRun } from "@/lib/staff";
-import { useClinic } from "@/lib/store";
+import { lockClinicMemory, useClinic } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { BackGesture } from "./back-gesture";
 import { LockScreen } from "./lock-screen";
 import { FirstRunSetup } from "./first-run-setup";
+import { RecoveryKeyScreen } from "./recovery-key-screen";
 import { ReminderWatch } from "./reminder-watch";
 import { Sheet, SheetContent, SheetTitle } from "./ui/sheet";
 
@@ -89,6 +92,7 @@ function NavLink({
 export function AppShell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false);
   const [storeReady, setStoreReady] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const settings = useClinic((s) => s.settings);
   const doctors = useClinic((s) => s.doctors);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -96,12 +100,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const doctorId = useSession((s) => s.doctorId);
   const logout = useSession((s) => s.logout);
   const hydrate = useSession((s) => s.hydrate);
+  const login = useSession((s) => s.login);
   const current = doctors.find((d) => d.id === doctorId);
   const doctorLabel = current ? shortName(current) : settings.doctorName;
+  const vaultOn = hasVault() || isPersistEncrypted();
+
+  useEffect(() => {
+    setRecoveryKey(getPendingRecoveryKey());
+    return subscribeRecoveryKey(() => setRecoveryKey(getPendingRecoveryKey()));
+  }, []);
 
   useEffect(() => {
     hydrate();
+    restoreDek();
     let done = false;
+    let unsub: (() => void) | void;
     const started = Date.now();
     const mark = () => {
       if (done) return;
@@ -111,10 +124,24 @@ export function AppShell({ children }: { children: ReactNode }) {
       window.setTimeout(() => document.documentElement.classList.add("denta-ready"), wait);
     };
     const persist = useClinic.persist;
-    if (persist?.hasHydrated?.()) mark();
-    const unsub = persist?.onFinishHydration?.(mark);
-    void persist?.rehydrate?.();
-    const fallback = window.setTimeout(mark, 1200);
+    unsub = persist?.onFinishHydration?.(mark);
+    void (async () => {
+      try {
+        const encrypted = hasVault() || isPersistEncrypted();
+        if (!encrypted || hasDek()) {
+          if (persist?.hasHydrated?.()) mark();
+          await persist?.rehydrate?.();
+          mark();
+          return;
+        }
+        mark();
+      } catch {
+        useSession.getState().logout();
+        lockClinicMemory();
+        mark();
+      }
+    })();
+    const fallback = window.setTimeout(mark, 4000);
     return () => {
       unsub?.();
       window.clearTimeout(fallback);
@@ -134,6 +161,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMore(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!storeReady || settings.requireLogin || doctorId) return;
+    const next = doctors.find((d) => d.active !== false);
+    if (next) login(next.id);
+  }, [storeReady, settings.requireLogin, doctorId, doctors, login]);
+
   if (!storeReady) {
     return (
       <div className="grid min-h-dvh place-items-center bg-bg px-4">
@@ -141,8 +174,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (needsFirstRun(doctors)) {
+  if (recoveryKey) {
+    return <RecoveryKeyScreen recoveryKey={recoveryKey} />;
+  }
+  if (!vaultOn && needsFirstRun(doctors)) {
     return <FirstRunSetup />;
+  }
+  if (vaultOn && !hasDek()) {
+    return <LockScreen />;
   }
   if (settings.requireLogin && !doctorId) {
     return <LockScreen />;
@@ -174,7 +213,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           {settings.requireLogin ? (
             <button
               type="button"
-              onClick={logout}
+              onClick={() => {
+                logout();
+                lockClinicMemory();
+              }}
               className="grid size-9 place-items-center rounded-md text-rail-muted hover:bg-rail-fg/10 hover:text-rail-fg"
               aria-label="Выйти"
             >

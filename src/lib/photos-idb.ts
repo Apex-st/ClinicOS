@@ -1,3 +1,6 @@
+import { decryptBytes, encryptBytes, isPhotoPacked, packPhoto, unpackPhoto } from "./crypto";
+import { getDek } from "./crypto-session";
+
 const DB_NAME = "denta-photos-v1";
 const STORE = "files";
 
@@ -15,7 +18,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function putPhotoBlob(id: string, blob: Blob) {
+async function putRaw(id: string, blob: Blob) {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -25,7 +28,7 @@ export async function putPhotoBlob(id: string, blob: Blob) {
   });
 }
 
-export async function getPhotoBlob(id: string): Promise<Blob | undefined> {
+async function getRaw(id: string): Promise<Blob | undefined> {
   try {
     const db = await openDb();
     return new Promise((resolve, reject) => {
@@ -36,6 +39,70 @@ export async function getPhotoBlob(id: string): Promise<Blob | undefined> {
     });
   } catch {
     return undefined;
+  }
+}
+
+export async function putPhotoBlob(id: string, blob: Blob) {
+  const dek = getDek();
+  if (dek) {
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    if (isPhotoPacked(buf)) {
+      await putRaw(id, blob);
+      return;
+    }
+    const { iv, ct } = await encryptBytes(dek, buf);
+    const packed = packPhoto(iv, ct);
+    const packedBuf = packed.buffer.slice(packed.byteOffset, packed.byteOffset + packed.byteLength) as ArrayBuffer;
+    await putRaw(id, new Blob([packedBuf], { type: blob.type || "application/octet-stream" }));
+    return;
+  }
+  await putRaw(id, blob);
+}
+
+export async function getPhotoBlob(id: string): Promise<Blob | undefined> {
+  const stored = await getRaw(id);
+  if (!stored) return undefined;
+  const buf = new Uint8Array(await stored.arrayBuffer());
+  const packed = unpackPhoto(buf);
+  if (!packed) return stored;
+  const dek = getDek();
+  if (!dek) return undefined;
+  try {
+    const plain = await decryptBytes(dek, packed.iv, packed.ct);
+    const plainBuf = plain.buffer.slice(plain.byteOffset, plain.byteOffset + plain.byteLength) as ArrayBuffer;
+    return new Blob([plainBuf], { type: stored.type || "image/jpeg" });
+  } catch {
+    return undefined;
+  }
+}
+
+export async function listPhotoIds(): Promise<string[]> {
+  try {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => resolve((req.result as IDBValidKey[]).map(String));
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function encryptAllPlainPhotos() {
+  const dek = getDek();
+  if (!dek) return;
+  const ids = await listPhotoIds();
+  for (const id of ids) {
+    const stored = await getRaw(id);
+    if (!stored) continue;
+    const buf = new Uint8Array(await stored.arrayBuffer());
+    if (isPhotoPacked(buf)) continue;
+    const { iv, ct } = await encryptBytes(dek, buf);
+    const packed = packPhoto(iv, ct);
+    const packedBuf = packed.buffer.slice(packed.byteOffset, packed.byteOffset + packed.byteLength) as ArrayBuffer;
+    await putRaw(id, new Blob([packedBuf], { type: stored.type || "application/octet-stream" }));
   }
 }
 

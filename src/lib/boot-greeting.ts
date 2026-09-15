@@ -1,8 +1,26 @@
 import { greetingDoctorName, todayHeadline } from "./format";
 
+function readVaultPublic() {
+  try {
+    const vault = JSON.parse(localStorage.getItem("denta-vault-v1") || "null") as {
+      kind?: string;
+      clinicName?: string;
+      welcomeName?: string;
+      welcomeMode?: "auto" | "custom";
+      welcomeText?: string;
+    } | null;
+    if (vault?.kind !== "denta-vault") return null;
+    return vault;
+  } catch {
+    return null;
+  }
+}
+
 export function readBootGreeting() {
   try {
+    const vault = readVaultPublic();
     const clinic = JSON.parse(localStorage.getItem("denta-clinic-v1") || "{}") as {
+      kind?: string;
       state?: {
         settings?: {
           doctorName?: string;
@@ -32,6 +50,17 @@ export function readBootGreeting() {
         active?: boolean;
       }>;
     };
+    if (clinic.kind === "denta-clinic-enc" || vault) {
+      const fio = (vault?.welcomeName || "").trim();
+      const custom = (vault?.welcomeText || "").trim();
+      if (vault?.welcomeMode === "custom" && custom) {
+        return todayHeadline(
+          { doctorName: fio, welcomeMode: "custom", welcomeText: custom },
+          fio,
+        );
+      }
+      return todayHeadline({ doctorName: fio, welcomeMode: "auto", welcomeText: "" }, fio);
+    }
     const st = clinic.state || clinic;
     const settings = {
       doctorName: st.settings?.doctorName || "",

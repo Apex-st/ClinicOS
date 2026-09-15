@@ -63,6 +63,7 @@ export interface ImportPreview {
 export interface ImportFail {
   ok: false;
   error: string;
+  needPassword?: boolean;
 }
 
 export type ParseResult = ImportPreview | ImportFail;
