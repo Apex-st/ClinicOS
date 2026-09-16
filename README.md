@@ -42,8 +42,13 @@
 - **v2.32** — [ClinicOS-2.32.apk](./ClinicOS-2.32.apk), релиз [ClinicOS 2.32](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.32)
 - **v2.33** — [ClinicOS-2.33.apk](./ClinicOS-2.33.apk), релиз [ClinicOS 2.33](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.33)
 - **v2.34** — [ClinicOS-2.34.apk](./ClinicOS-2.34.apk), релиз [ClinicOS 2.34](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.34)
+- **v2.35** — [ClinicOS-2.35.apk](./ClinicOS-2.35.apk), релиз [ClinicOS 2.35](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.35)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
+
+### Что нового в 2.35
+
+- **Последний профиль** — если остался один аккаунт и он не главврач и не администратор, можно сменить роль и профиль. Иначе кабинет нельзя настроить.
 
 ### Что нового в 2.34
 

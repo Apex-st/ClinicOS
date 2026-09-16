@@ -13,7 +13,7 @@ import { rotateRecoveryKey, wrapDoctorPassword } from "@/lib/encryption";
 import { clearDekUnlock, getDek, persistDekUnlock } from "@/lib/crypto-session";
 import { hasVault, patchVaultRequireLogin } from "@/lib/vault";
 import { useSession, AUTO_SESSION_KEY } from "@/lib/session";
-import { canManageStaff, DOCTOR_ROLES, roleLabel } from "@/lib/staff";
+import { canChangeOwnRole, canManageStaff, DOCTOR_ROLES, isLastActiveAccount, roleLabel } from "@/lib/staff";
 import { useClinic } from "@/lib/store";
 import type { Doctor, DoctorRole } from "@/lib/types";
 
@@ -28,7 +28,11 @@ export function StaffPanel() {
   const updateSettings = useClinic((s) => s.updateSettings);
   const sessionId = useSession((s) => s.doctorId);
   const login = useSession((s) => s.login);
-  const manager = canManageStaff({ requireLogin: settings.requireLogin, actor: doctors.find((d) => d.id === sessionId) });
+  const actor = doctors.find((d) => d.id === sessionId);
+  const staffOpts = { requireLogin: settings.requireLogin, actor, doctors };
+  const manager = canManageStaff(staffOpts);
+  const canEditOwnRole = canChangeOwnRole(staffOpts);
+  const lastAlone = isLastActiveAccount(doctors, sessionId);
   const [askId, setAskId] = useState<string | null>(null);
   const [form, setForm] = useState({
     lastName: "",
@@ -148,6 +152,19 @@ export function StaffPanel() {
         шифруются на диске.
       </p>
 
+      {lastAlone && actor && !["admin", "chief"].includes(actor.role) ? (
+        <p className="mt-3 rounded-lg bg-bg px-3 py-2 text-[13px] text-muted" data-testid="last-account-hint">
+          Вы единственный включённый профиль. Откройте его и смените роль на главного врача или администратора — иначе
+          нельзя завести остальных.
+        </p>
+      ) : null}
+
+      {!lastAlone && canEditOwnRole && actor && !["admin", "chief"].includes(actor.role) ? (
+        <p className="mt-3 rounded-lg bg-bg px-3 py-2 text-[13px] text-muted">
+          Среди включённых нет главного врача или администратора. Смените роль в своём профиле.
+        </p>
+      ) : null}
+
       {hasVault() ? (
         <p className="mt-3 rounded-lg bg-bg px-3 py-2 text-[13px] text-muted">
           Данные закрыты AES-256. Если снять галочку ниже, кабинет открывается сразу на этом телефоне или компьютере —
@@ -180,6 +197,7 @@ export function StaffPanel() {
             current={sessionId === d.id}
             canDelete={manager && doctors.length > 1}
             manager={manager}
+            allowRole={manager || (canEditOwnRole && sessionId === d.id)}
             others={doctors}
             onUpdate={(patch) => updateDoctor(d.id, patch)}
             onPassword={(pwd) => void setPass(d.id, pwd)}
@@ -294,6 +312,7 @@ function DoctorRow({
   current,
   canDelete,
   manager,
+  allowRole,
   others,
   onUpdate,
   onPassword,
@@ -304,6 +323,7 @@ function DoctorRow({
   current: boolean;
   canDelete: boolean;
   manager: boolean;
+  allowRole: boolean;
   others: Doctor[];
   onUpdate: (patch: Partial<Doctor>) => void;
   onPassword: (password: string) => void;
@@ -331,7 +351,7 @@ function DoctorRow({
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="secondary" onClick={() => setEdit(true)}>
+        <Button type="button" size="sm" variant="secondary" data-testid="edit-profile" onClick={() => setEdit(true)}>
           Изменить профиль
         </Button>
         {manager ? (
@@ -350,6 +370,7 @@ function DoctorRow({
         doctor={d}
         others={others}
         manager={manager}
+        allowRole={allowRole}
         password={pwd}
         onPasswordChange={setPwd}
         onOpenChange={setEdit}
@@ -372,6 +393,7 @@ function DoctorEditDialog({
   doctor,
   others,
   manager,
+  allowRole,
   password,
   onPasswordChange,
   onOpenChange,
@@ -381,6 +403,7 @@ function DoctorEditDialog({
   doctor: Doctor;
   others: Doctor[];
   manager: boolean;
+  allowRole: boolean;
   password: string;
   onPasswordChange: (v: string) => void;
   onOpenChange: (o: boolean) => void;
@@ -444,7 +467,8 @@ function DoctorEditDialog({
           <Field label="Роль">
             <Select
               value={form.role}
-              disabled={!manager}
+              disabled={!allowRole}
+              data-testid="doctor-role"
               onChange={(e) => setForm({ ...form, role: e.target.value as DoctorRole })}
             >
               {DOCTOR_ROLES.map((r) => (
@@ -453,6 +477,9 @@ function DoctorEditDialog({
                 </option>
               ))}
             </Select>
+            {allowRole && !manager ? (
+              <p className="mt-1 text-[12px] text-muted">Можно сменить на главного врача или администратора.</p>
+            ) : null}
           </Field>
           <Field label="Процент от кассы">
             <Input

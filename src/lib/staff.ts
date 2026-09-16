@@ -20,10 +20,32 @@ export function isManagerRole(role: DoctorRole | string | undefined): boolean {
   return role === "admin" || role === "chief";
 }
 
-/** Кто может заводить чужие профили и менять роли. Без пароля кабинет открыт — можно настроить всех. */
-export function canManageStaff(opts: { requireLogin: boolean; actor?: Doctor | null }): boolean {
+export function activeDoctors(doctors: Doctor[] | undefined): Doctor[] {
+  return (doctors ?? []).filter((d) => d.active !== false);
+}
+
+export function isLastActiveAccount(doctors: Doctor[] | undefined, doctorId: string | null | undefined): boolean {
+  if (!doctorId) return false;
+  const active = activeDoctors(doctors);
+  return active.length === 1 && active[0].id === doctorId;
+}
+
+export function hasActiveManager(doctors: Doctor[] | undefined): boolean {
+  return activeDoctors(doctors).some((d) => isManagerRole(d.role));
+}
+
+/** Кто может заводить чужие профили и менять роли. Последний включённый аккаунт не блокируется. */
+export function canManageStaff(opts: { requireLogin: boolean; actor?: Doctor | null; doctors?: Doctor[] }): boolean {
   if (!opts.requireLogin || !opts.actor) return true;
-  return isManagerRole(opts.actor.role);
+  if (isManagerRole(opts.actor.role)) return true;
+  return isLastActiveAccount(opts.doctors, opts.actor.id);
+}
+
+/** Своя роль: менеджер, единственный включённый, либо среди включённых нет главврача/админа. */
+export function canChangeOwnRole(opts: { requireLogin: boolean; actor?: Doctor | null; doctors?: Doctor[] }): boolean {
+  if (canManageStaff(opts)) return true;
+  if (!opts.actor) return false;
+  return !hasActiveManager(opts.doctors);
 }
 
 /** Первый запуск: ещё нет ни одного врача с паролем — даже выключенного. */

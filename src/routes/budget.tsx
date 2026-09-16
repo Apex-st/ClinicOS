@@ -100,7 +100,7 @@ function BudgetPage() {
   const sessionDoctorId = useSession((s) => s.doctorId);
 
   const actor = doctors.find((d) => d.id === sessionDoctorId);
-  const canEdit = canManageStaff({ requireLogin: settings.requireLogin, actor });
+  const canEdit = canManageStaff({ requireLogin: settings.requireLogin, actor, doctors });
 
   const [period, setPeriod] = useState<BudgetPeriod>("month");
   const [from, setFrom] = useState("");
