@@ -1,11 +1,22 @@
-import { isNativeApp } from "@/lib/native-file";
+import { Capacitor } from "@capacitor/core";
+import { FolderAccess } from "@/plugins/folder-access";
+import { downloadBlob } from "@/lib/utils";
+import {
+  SYNC_FILE_NAME,
+  folderNameFromRelativePath,
+  inIframe,
+  isCancelError,
+  isTopLevelSyncFile,
+} from "@/lib/sync-folder-parse";
 
-export const SYNC_FILE_NAME = "ClinicOS-cabinet.denta";
-export type FolderKind = "none" | "fsa" | "native" | "opfs";
+export { SYNC_FILE_NAME, inIframe } from "@/lib/sync-folder-parse";
+export type FolderKind = "none" | "fsa" | "native" | "opfs" | "mirror";
+export type DrivePickStrategy = "native" | "fsa" | "sheet";
 
 const IDB_NAME = "denta-sync-folder-v1";
 const IDB_STORE = "kv";
 const FSA_KEY = "dir";
+const MIRROR_KEY = "mirror";
 const KIND_KEY = "denta-sync-kind";
 
 type FsaDir = {
@@ -18,6 +29,12 @@ type FsaDir = {
 type FsaFile = {
   getFile: () => Promise<File>;
   createWritable: () => Promise<{ write: (data: BufferSource | Blob) => Promise<void>; close: () => Promise<void> }>;
+};
+
+type MirrorRecord = {
+  name: string;
+  bytes: ArrayBuffer | null;
+  lastModified: number;
 };
 
 function canIdb() {
@@ -71,7 +88,7 @@ async function idbDel(key: string) {
 export function savedFolderKind(): FolderKind {
   if (typeof localStorage === "undefined") return "none";
   const k = localStorage.getItem(KIND_KEY);
-  if (k === "fsa" || k === "native" || k === "opfs") return k;
+  if (k === "fsa" || k === "native" || k === "opfs" || k === "mirror") return k;
   return "none";
 }
 
@@ -83,16 +100,18 @@ function setKind(kind: FolderKind) {
 
 export function canPickDriveFolder() {
   if (typeof window === "undefined") return false;
+  if (inIframe()) return false;
   return typeof (window as Window & { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
+}
+
+export function drivePickStrategy(): DrivePickStrategy {
+  if (typeof window === "undefined") return "sheet";
+  if (Capacitor.isNativePlatform()) return "native";
+  return "sheet";
 }
 
 export function canUseOpfs() {
   return typeof navigator !== "undefined" && Boolean(navigator.storage?.getDirectory);
-}
-
-async function nativePlugin() {
-  const { FolderAccess } = await import("@/plugins/folder-access");
-  return FolderAccess;
 }
 
 async function ensureFsa(handle: FsaDir) {
@@ -111,23 +130,24 @@ async function opfsDir(create: boolean) {
   return root.getDirectoryHandle("clinic-sync", { create });
 }
 
-export async function pickDriveFolder(): Promise<{ name: string; kind: FolderKind }> {
-  if (await isNativeApp()) {
-    const plugin = await nativePlugin();
-    const picked = await plugin.pickDirectory();
-    setKind("native");
-    return { name: picked.name || "Папка", kind: "native" };
+/** Must be called directly from a click — no await before this function's first native/FSA call. */
+export function pickDriveFolder(): Promise<{ name: string; kind: FolderKind }> {
+  if (Capacitor.isNativePlatform()) {
+    return FolderAccess.pickDirectory().then((picked) => {
+      setKind("native");
+      return { name: picked.name || "Папка", kind: "native" as const };
+    });
   }
-  const picker = (window as Window & { showDirectoryPicker?: (opts: { mode: string }) => Promise<FsaDir> })
-    .showDirectoryPicker;
-  if (!picker) {
-    throw new Error("picker-unavailable");
+  const picker = (window as Window & { showDirectoryPicker?: (opts: object) => Promise<FsaDir> }).showDirectoryPicker;
+  if (typeof picker === "function" && !inIframe()) {
+    return picker({ id: "clinicos-sync", mode: "readwrite", startIn: "documents" }).then(async (handle) => {
+      if (!(await ensureFsa(handle))) throw new Error("permission-denied");
+      await idbSet(FSA_KEY, handle);
+      setKind("fsa");
+      return { name: handle.name || "Папка", kind: "fsa" as const };
+    });
   }
-  const handle = await picker({ mode: "readwrite" });
-  if (!(await ensureFsa(handle))) throw new Error("permission-denied");
-  await idbSet(FSA_KEY, handle);
-  setKind("fsa");
-  return { name: handle.name || "Папка", kind: "fsa" };
+  return Promise.reject(new Error("need-sheet"));
 }
 
 export async function pickOpfsFolder(): Promise<{ name: string; kind: "opfs" }> {
@@ -137,12 +157,38 @@ export async function pickOpfsFolder(): Promise<{ name: string; kind: "opfs" }> 
   return { name: "Это окно браузера", kind: "opfs" };
 }
 
+export async function ingestDirectoryFiles(files: FileList | File[]): Promise<{ name: string; kind: "mirror" }> {
+  const list = Array.from(files);
+  if (!list.length) throw new Error("canceled");
+  const first = list[0] as File & { webkitRelativePath?: string };
+  const name = folderNameFromRelativePath(first.webkitRelativePath || first.name);
+  const denta = list.find((f) => {
+    const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    return isTopLevelSyncFile(rel, f.name);
+  });
+  if (denta) {
+    const buf = await denta.arrayBuffer();
+    await idbSet(MIRROR_KEY, { name, bytes: buf, lastModified: denta.lastModified } satisfies MirrorRecord);
+  } else {
+    await idbSet(MIRROR_KEY, { name, bytes: null, lastModified: Date.now() } satisfies MirrorRecord);
+  }
+  setKind("mirror");
+  return { name, kind: "mirror" };
+}
+
+export async function ingestDentaFile(file: File): Promise<{ name: string; kind: "mirror" }> {
+  const buf = await file.arrayBuffer();
+  const name = file.name.replace(/\.(denta|zip|json)$/i, "") || "Кабинет";
+  await idbSet(MIRROR_KEY, { name, bytes: buf, lastModified: file.lastModified } satisfies MirrorRecord);
+  setKind("mirror");
+  return { name, kind: "mirror" };
+}
+
 export async function restoreFolder(): Promise<{ name: string; kind: FolderKind } | null> {
   const kind = savedFolderKind();
   if (kind === "native") {
-    if (!(await isNativeApp())) return null;
-    const plugin = await nativePlugin();
-    const restored = await plugin.restoreDirectory();
+    if (!Capacitor.isNativePlatform()) return null;
+    const restored = await FolderAccess.restoreDirectory();
     if ("missing" in restored && restored.missing) return null;
     return { name: "name" in restored ? restored.name || "Папка" : "Папка", kind: "native" };
   }
@@ -161,6 +207,11 @@ export async function restoreFolder(): Promise<{ name: string; kind: FolderKind 
       return null;
     }
   }
+  if (kind === "mirror") {
+    const rec = await idbGet<MirrorRecord>(MIRROR_KEY);
+    if (!rec) return null;
+    return { name: rec.name || "Папка", kind: "mirror" };
+  }
   return null;
 }
 
@@ -173,15 +224,15 @@ export async function folderNeedsGesture(): Promise<boolean> {
 
 export async function forgetFolder() {
   const kind = savedFolderKind();
-  if (kind === "native" && (await isNativeApp())) {
+  if (kind === "native" && Capacitor.isNativePlatform()) {
     try {
-      const plugin = await nativePlugin();
-      await plugin.forgetDirectory();
+      await FolderAccess.forgetDirectory();
     } catch {
       /* */
     }
   }
   await idbDel(FSA_KEY);
+  await idbDel(MIRROR_KEY);
   setKind("none");
 }
 
@@ -195,8 +246,7 @@ async function fsaHandle(): Promise<FsaDir | null> {
 export async function readSyncFile(): Promise<{ bytes: Uint8Array; lastModified: number } | null> {
   const kind = savedFolderKind();
   if (kind === "native") {
-    const plugin = await nativePlugin();
-    const r = await plugin.readToCache({ cacheFile: "denta-sync-in.denta", fileName: SYNC_FILE_NAME });
+    const r = await FolderAccess.readToCache({ cacheFile: "denta-sync-in.denta", fileName: SYNC_FILE_NAME });
     if (!("lastModified" in r)) return null;
     const modified = r.lastModified;
     const { Filesystem, Directory } = await import("@capacitor/filesystem");
@@ -232,6 +282,11 @@ export async function readSyncFile(): Promise<{ bytes: Uint8Array; lastModified:
       return null;
     }
   }
+  if (kind === "mirror") {
+    const rec = await idbGet<MirrorRecord>(MIRROR_KEY);
+    if (!rec?.bytes) return null;
+    return { bytes: new Uint8Array(rec.bytes), lastModified: rec.lastModified };
+  }
   return null;
 }
 
@@ -257,8 +312,7 @@ export async function writeSyncFile(bytes: Uint8Array) {
       data: b64,
       directory: Directory.Cache,
     });
-    const plugin = await nativePlugin();
-    await plugin.writeFromCache({ cacheFile: "denta-sync-out.denta", fileName: SYNC_FILE_NAME });
+    await FolderAccess.writeFromCache({ cacheFile: "denta-sync-out.denta", fileName: SYNC_FILE_NAME });
     return;
   }
   if (kind === "fsa") {
@@ -278,5 +332,19 @@ export async function writeSyncFile(bytes: Uint8Array) {
     await w.close();
     return;
   }
+  if (kind === "mirror") {
+    const rec = (await idbGet<MirrorRecord>(MIRROR_KEY)) ?? { name: "Папка", bytes: null, lastModified: Date.now() };
+    const buf = copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength);
+    await idbSet(MIRROR_KEY, { ...rec, bytes: buf, lastModified: Date.now() } satisfies MirrorRecord);
+    return;
+  }
   throw new Error("no-folder");
 }
+
+export function downloadSyncCopy(bytes: Uint8Array) {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  downloadBlob(new Blob([copy], { type: "application/octet-stream" }), SYNC_FILE_NAME);
+}
+
+export { isCancelError };

@@ -41,8 +41,14 @@
 - **v2.31** — [ClinicOS-2.31.apk](./ClinicOS-2.31.apk), релиз [ClinicOS 2.31](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.31)
 - **v2.32** — [ClinicOS-2.32.apk](./ClinicOS-2.32.apk), релиз [ClinicOS 2.32](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.32)
 - **v2.33** — [ClinicOS-2.33.apk](./ClinicOS-2.33.apk), релиз [ClinicOS 2.33](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.33)
+- **v2.34** — [ClinicOS-2.34.apk](./ClinicOS-2.34.apk), релиз [ClinicOS 2.34](https://github.com/Apex-st/denta-cabinet/releases/tag/v2.34)
 
 Все версии: [Releases](https://github.com/Apex-st/denta-cabinet/releases).
+
+### Что нового в 2.34
+
+- **Папка Диска** — кнопка сразу открывает окно выбора. Если браузер его прячет, можно указать папку или файл `.denta`.
+- **Телефон** — в списке папок слева выбирается Google Диск.
 
 ### Что нового в 2.33
 

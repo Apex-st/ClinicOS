@@ -1,5 +1,5 @@
 import { useSyncExternalStore, useState } from "react";
-import { Cloud, FolderOpen, RefreshCw } from "lucide-react";
+import { Cloud, FolderOpen, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/alert-dialog";
@@ -7,46 +7,66 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { IosSwitch } from "@/components/ios-switch";
+import { FolderPickSheet, type FolderConnectResult } from "@/components/folder-pick-sheet";
 import { hasDek } from "@/lib/crypto-session";
 import { hasVault } from "@/lib/vault";
+import { isCancelError } from "@/lib/sync-folder-parse";
 import {
   SYNC_FILE_NAME,
   canUseOpfs,
   connectFolder,
   disconnectSync,
+  downloadMirrorNow,
+  drivePickStrategy,
   formatSyncTime,
   getSyncStatus,
   resolveConflict,
   runSync,
   subscribeSync,
-  syncPickerHint,
 } from "@/lib/clinic-sync";
 
 export function SyncPanel() {
   const status = useSyncExternalStore(subscribeSync, getSyncStatus, getSyncStatus);
-  const hint = syncPickerHint();
   const [busy, setBusy] = useState(false);
   const [offAsk, setOffAsk] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [password, setPassword] = useState("");
   const ready = hasVault() && hasDek();
+  const mirror = status.kind === "mirror";
+
+  function onConnected(r: FolderConnectResult) {
+    if (r.status === "need-password" || r.status === "empty") {
+      if (r.status === "empty") {
+        toast.error("В папке нет файла кабинета. Сначала подключите папку на устройстве, где кабинет уже есть.");
+      } else {
+        setPasswordOpen(true);
+      }
+    }
+  }
+
+  function startDrivePick() {
+    if (!ready) {
+      toast.error("Сначала войдите в кабинет");
+      return;
+    }
+    if (drivePickStrategy() === "sheet") {
+      setSheetOpen(true);
+      return;
+    }
+    void pick("drive");
+  }
 
   async function pick(kind: "drive" | "opfs") {
     setBusy(true);
     try {
       const r = await connectFolder(kind);
-      if (r.status === "need-password" || r.status === "empty") {
-        if (r.status === "empty") {
-          toast.error("В папке нет файла кабинета. Сначала подключите папку на устройстве, где кабинет уже есть.");
-        } else {
-          setPasswordOpen(true);
-        }
-      }
+      onConnected(r);
     } catch (err) {
+      if (isCancelError(err)) return;
       const msg = String((err as { message?: string })?.message || err);
-      if (msg.includes("canceled")) return;
-      if (msg.includes("picker-unavailable")) {
-        toast.error("В этом окне браузер не даёт выбрать папку. Откройте программу на телефоне или в Chrome — там появится Диск.");
+      if (msg.includes("need-sheet") || msg.includes("picker-unavailable")) {
+        setSheetOpen(true);
         return;
       }
       toast.error("Не удалось открыть папку");
@@ -112,7 +132,7 @@ export function SyncPanel() {
               return;
             }
             if (!on) setOffAsk(true);
-            else void pick("drive");
+            else startDrivePick();
           }}
         />
       </div>
@@ -129,6 +149,11 @@ export function SyncPanel() {
           </div>
           {status.dirty ? (
             <p className="text-[12px] text-muted">Есть местные изменения, ещё не ушедшие в папку.</p>
+          ) : null}
+          {mirror ? (
+            <p className="text-[12px] text-muted">
+              Это окно не может само писать в Google Диск. Нажмите «Скачать в Диск» и сохраните файл в ту же папку.
+            </p>
           ) : null}
           {status.lastError ? <p className="text-sm text-danger">{status.lastError}</p> : null}
           {status.needsGesture ? (
@@ -152,7 +177,7 @@ export function SyncPanel() {
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button type="button" disabled={busy || !ready} onClick={() => void pick("drive")}>
+        <Button type="button" disabled={busy} onClick={startDrivePick}>
           <FolderOpen className="size-4" />
           {status.enabled ? "Сменить папку" : "Выбрать папку Диска"}
         </Button>
@@ -162,24 +187,25 @@ export function SyncPanel() {
             Синхронизировать
           </Button>
         ) : null}
-        {canUseOpfs() && status.kind !== "fsa" && status.kind !== "native" ? (
+        {status.enabled && mirror ? (
+          <Button type="button" variant="outline" disabled={busy || !ready} onClick={() => void downloadMirrorNow()}>
+            <Download className="size-4" />
+            Скачать в Диск
+          </Button>
+        ) : null}
+        {canUseOpfs() && status.kind !== "fsa" && status.kind !== "native" && status.kind !== "mirror" ? (
           <Button type="button" variant="outline" disabled={busy || !ready} onClick={() => void pick("opfs")}>
             Проверить в этом окне
           </Button>
         ) : null}
       </div>
 
-      {hint === "blocked" && !status.enabled ? (
-        <p className="mt-3 text-[12px] text-muted">
-          Здесь браузер не открывает окно Диска. На Android и в Chrome кнопка покажет папки — выберите каталог Google
-          Диска. «Проверить в этом окне» пишет копию только в этот браузер, коллеге она не уйдёт.
-        </p>
-      ) : (
-        <p className="mt-3 text-[12px] text-muted">
-          В окне выбора откройте Google Диск и укажите папку. Не правьте карточки на двух телефонах в одну секунду:
-          если обе копии новее, программа спросит.
-        </p>
-      )}
+      <p className="mt-3 text-[12px] text-muted">
+        На телефоне откроется список папок — слева выберите Google Диск. Если окно не появилось, программа покажет
+        выбор файла. Не правьте карточки на двух телефонах в одну секунду: если обе копии новее, программа спросит.
+      </p>
+
+      <FolderPickSheet open={sheetOpen} onOpenChange={setSheetOpen} onResult={onConnected} />
 
       <ConfirmDialog
         open={offAsk}

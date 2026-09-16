@@ -14,14 +14,14 @@ export interface FolderAccessPlugin {
 
 class FolderAccessWeb extends WebPlugin implements FolderAccessPlugin {
   async pickDirectory(): Promise<FolderPickResult> {
-    throw new Error("web-stub");
+    throw this.unavailable("picker-unavailable");
   }
   async restoreDirectory(): Promise<FolderMissing> {
     return { missing: true };
   }
   async forgetDirectory() {}
   async writeFromCache(): Promise<FolderWriteResult> {
-    throw new Error("web-stub");
+    throw this.unavailable("web-stub");
   }
   async readToCache(): Promise<FolderMissing> {
     return { missing: true };

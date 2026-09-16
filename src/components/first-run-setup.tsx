@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { FolderPickSheet } from "@/components/folder-pick-sheet";
 import { enableEncryption, finishSignIn, signInWithPassword } from "@/lib/encryption";
 import { maybePersistAutoUnlock } from "@/lib/crypto-session";
 import { hashPassword, randomSalt } from "@/lib/passwords";
@@ -10,7 +11,8 @@ import { useSession } from "@/lib/session";
 import { DOCTOR_ROLES, hasPasswordAccount } from "@/lib/staff";
 import { shortName } from "@/lib/format";
 import { useClinic } from "@/lib/store";
-import { connectFolder, openCabinetFromFolder, syncPickerHint } from "@/lib/clinic-sync";
+import { connectFolder, drivePickStrategy, openCabinetFromFolder } from "@/lib/clinic-sync";
+import { isCancelError } from "@/lib/sync-folder-parse";
 import type { DoctorRole } from "@/lib/types";
 
 export function FirstRunSetup() {
@@ -33,7 +35,7 @@ export function FirstRunSetup() {
   const [password2, setPassword2] = useState("");
   const [busy, setBusy] = useState(false);
   const [folderName, setFolderName] = useState("");
-  const picker = syncPickerHint();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   async function submitLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +70,14 @@ export function FirstRunSetup() {
     }
   }
 
+  function startPickFolder() {
+    if (drivePickStrategy() === "sheet") {
+      setSheetOpen(true);
+      return;
+    }
+    void pickFolder();
+  }
+
   async function pickFolder() {
     setBusy(true);
     try {
@@ -77,10 +87,10 @@ export function FirstRunSetup() {
         toast.error("В папке нет файла кабинета. Сначала подключите её там, где кабинет уже ведётся.");
       }
     } catch (err) {
+      if (isCancelError(err)) return;
       const msg = String((err as { message?: string })?.message || err);
-      if (msg.includes("canceled")) return;
-      if (msg.includes("picker-unavailable")) {
-        toast.error("В этом окне нельзя выбрать папку Диска. На телефоне или в Chrome кнопка откроет Диск.");
+      if (msg.includes("need-sheet") || msg.includes("picker-unavailable")) {
+        setSheetOpen(true);
         return;
       }
       toast.error("Не удалось открыть папку");
@@ -257,14 +267,12 @@ export function FirstRunSetup() {
             Выберите ту же папку Google Диска, к которой вам открыли доступ. Файл зашифрован — нужен пароль врача.
           </p>
           <div className="mt-5 flex flex-col gap-3">
-            <Button type="button" variant="outline" disabled={busy} onClick={() => void pickFolder()}>
+            <Button type="button" variant="outline" disabled={busy} onClick={startPickFolder}>
               {folderName ? `Папка: ${folderName}` : "Выбрать папку Диска"}
             </Button>
-            {picker === "blocked" ? (
-              <p className="text-[12px] text-muted">
-                В этом окне выбор папки может не открыться. На Android или в Chrome появится окно Диска.
-              </p>
-            ) : null}
+            <p className="text-[12px] text-muted">
+              Откроется выбор папки. Если браузер его не показывает — укажите файл ClinicOS-cabinet.denta.
+            </p>
             <Field label="Пароль или ключ восстановления">
               <Input
                 type="password"
@@ -344,6 +352,17 @@ export function FirstRunSetup() {
         </div>
       </form>
       )}
+      <FolderPickSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        allowOpfs={false}
+        onResult={(r) => {
+          setFolderName(r.folderName);
+          if (r.status === "empty") {
+            toast.error("В папке нет файла кабинета. Сначала подключите её там, где кабинет уже ведётся.");
+          }
+        }}
+      />
     </div>
   );
 }

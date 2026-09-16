@@ -12,8 +12,12 @@ import { decideSync } from "@/lib/sync-decide";
 import {
   canPickDriveFolder,
   canUseOpfs,
+  downloadSyncCopy,
+  drivePickStrategy,
   forgetFolder,
   folderNeedsGesture,
+  ingestDentaFile,
+  ingestDirectoryFiles,
   pickDriveFolder,
   pickOpfsFolder,
   readSyncFile,
@@ -97,7 +101,7 @@ function readConfig(): SyncConfig {
     return {
       ...idleConfig(),
       ...parsed,
-      kind: parsed.kind === "fsa" || parsed.kind === "native" || parsed.kind === "opfs" ? parsed.kind : "none",
+      kind: parsed.kind === "fsa" || parsed.kind === "native" || parsed.kind === "opfs" || parsed.kind === "mirror" ? parsed.kind : "none",
     };
   } catch {
     return idleConfig();
@@ -156,7 +160,7 @@ export function syncPickerHint(): "native" | "fsa" | "blocked" {
   return "blocked";
 }
 
-export { canPickDriveFolder, canUseOpfs, SYNC_FILE_NAME };
+export { canPickDriveFolder, canUseOpfs, drivePickStrategy, ingestDentaFile, ingestDirectoryFiles, SYNC_FILE_NAME };
 
 function beginRemote() {
   applyingRemote = true;
@@ -261,7 +265,7 @@ function parseEnvelope(bytes: Uint8Array): BackupEnvelope | null {
   }
 }
 
-async function pushNow() {
+async function pushNow(opts?: { download?: boolean }) {
   const dek = getDek();
   if (!dek || !hasVault()) throw new Error("Кабинет ещё не защищён паролем — в папку можно писать только шифрованный файл.");
   const cfg = readConfig();
@@ -273,6 +277,9 @@ async function pushNow() {
   });
   const bytes = new Uint8Array(await blob.arrayBuffer());
   await writeSyncFile(bytes);
+  if (opts?.download && (cfg.kind === "mirror" || savedFolderKind() === "mirror")) {
+    downloadSyncCopy(bytes);
+  }
   writeConfig({
     lastRev: nextRev,
     lastPushAt: new Date().toISOString(),
@@ -324,8 +331,8 @@ export async function runSync(opts?: { reason?: string; force?: "push" | "pull";
     }
     needsGesture = false;
     if (opts?.force === "push") {
-      await pushNow();
-      if (!opts.silent) toast.success("Копия записана в папку");
+      await pushNow({ download: !opts.silent && savedFolderKind() === "mirror" });
+      if (!opts.silent) toast.success(savedFolderKind() === "mirror" ? "Файл обновлён. Сохраните его в папку Google Диска." : "Копия записана в папку");
       return { action: "push" as const };
     }
     if (opts?.force === "pull") {
@@ -346,7 +353,7 @@ export async function runSync(opts?: { reason?: string; force?: "push" | "pull";
       localDeviceId: deviceId(),
     });
     if (action === "init" || action === "push") {
-      await pushNow();
+      await pushNow({ download: !opts?.silent && savedFolderKind() === "mirror" });
     } else if (action === "pull") {
       await pullNow(opts?.password, { keepLocalPrefs: cfg.lastRev > 0 });
     } else if (action === "conflict") {
@@ -366,8 +373,7 @@ export async function runSync(opts?: { reason?: string; force?: "push" | "pull";
   }
 }
 
-export async function connectFolder(kind: "drive" | "opfs") {
-  const picked = kind === "opfs" ? await pickOpfsFolder() : await pickDriveFolder();
+export async function connectPickedFolder(picked: { name: string; kind: FolderKind }) {
   const local = useClinic.getState();
   const hasLocal = hasVault() && hasPasswordAccount(local.doctors);
   let syncId = readConfig().syncId;
@@ -381,14 +387,19 @@ export async function connectFolder(kind: "drive" | "opfs") {
     conflict: false,
   });
   const remote = await readSyncFile();
+  const download = picked.kind === "mirror";
   if (!remote) {
     if (!hasLocal || !getDek()) {
       await forgetFolder();
       writeConfig({ enabled: false, folderName: "", kind: "none" });
       return { status: "empty" as const, folderName: picked.name };
     }
-    await pushNow();
-    toast.success(`Файл ${SYNC_FILE_NAME} записан в «${picked.name}»`);
+    await pushNow({ download });
+    toast.success(
+      download
+        ? `Файл ${SYNC_FILE_NAME} скачан. Положите его в папку Google Диска.`
+        : `Файл ${SYNC_FILE_NAME} записан в «${picked.name}»`,
+    );
     return { status: "pushed" as const, folderName: picked.name };
   }
   if (!hasLocal) {
@@ -407,19 +418,24 @@ export async function connectFolder(kind: "drive" | "opfs") {
     }
   }
   if (readConfig().lastRev === 0) {
-    await pushNow();
-    toast.success("Кабинет записан в папку");
+    await pushNow({ download });
+    toast.success(download ? "Файл скачан. Положите его в папку Google Диска, заменив старый." : "Кабинет записан в папку");
     return { status: "pushed" as const, folderName: picked.name };
   }
-  const result = await runSync({ silent: true });
+  const result = await runSync({ silent: !download });
   if (result.action === "conflict") {
     toast.message("В папке другая копия. Выберите, какую оставить.");
   } else if (result.action === "pull") {
     toast.success("Кабинет взят из папки");
   } else if (result.action === "push" || result.action === "init") {
-    toast.success("Кабинет записан в папку");
+    toast.success(download ? "Файл обновлён. Сохраните его в папку Google Диска." : "Кабинет записан в папку");
   }
   return { status: result.action === "error" ? "error" : "connected", folderName: picked.name, ...result };
+}
+
+export async function connectFolder(kind: "drive" | "opfs") {
+  const picked = kind === "opfs" ? await pickOpfsFolder() : await pickDriveFolder();
+  return connectPickedFolder(picked);
 }
 
 export async function openCabinetFromFolder(password: string) {
@@ -428,8 +444,8 @@ export async function openCabinetFromFolder(password: string) {
       await connectFolder("drive");
     } catch (err) {
       const msg = String((err as { message?: string })?.message || err);
-      if (msg.includes("canceled") || msg.includes("picker-unavailable")) {
-        return { ok: false as const, error: "Выберите папку Google Диска. В этом окне браузер может не открыть выбор — откройте программу на телефоне или в Chrome." };
+      if (msg.includes("canceled") || msg.includes("picker-unavailable") || msg.includes("need-sheet")) {
+        return { ok: false as const, error: "Сначала нажмите «Выбрать папку Диска»." };
       }
       throw err;
     }
@@ -458,6 +474,16 @@ export async function openCabinetFromFolder(password: string) {
   await applyPreview(parsed, env, opened.dek, { keepLocalPrefs: false });
   const doctorId = opened.doctorId || useClinic.getState().doctors.find((d) => d.passwordHash)?.id || "";
   return { ok: true as const, doctorId };
+}
+
+export async function downloadMirrorNow() {
+  const file = await readSyncFile();
+  if (file) {
+    downloadSyncCopy(file.bytes);
+    toast.success(`Скачан ${SYNC_FILE_NAME}. Положите его в папку Google Диска.`);
+    return;
+  }
+  await runSync({ force: "push", silent: false });
 }
 
 export async function disconnectSync() {
